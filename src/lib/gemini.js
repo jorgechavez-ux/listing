@@ -47,22 +47,30 @@ async function callGroq(imageFile, prompt) {
 }
 
 // Paso 1: analizar la foto y decidir si hacen falta preguntas
-export async function analyzeForQuestions(imageFile) {
-  const prompt = `Analizá esta foto de un producto que alguien quiere vender en Marketplace.
+export async function analyzeForQuestions(imageFile, extraDetails = '') {
+  const extraContext = extraDetails.trim()
+    ? `\nEl vendedor ya aclaró lo siguiente: "${extraDetails.trim()}"\nConsiderá esta información como disponible — no preguntes nada que ya esté respondido acá.`
+    : ''
 
-REGLA PRINCIPAL: Solo preguntá cosas que son IMPOSIBLES de ver en la foto. Si algo se puede leer, inferir o deducir mirando la imagen, NO lo preguntes.
+  const prompt = `Analizá esta foto de un producto que alguien quiere vender en Marketplace.${extraContext}
 
-Tu tarea:
-1. Mirá la foto con atención. Fijate qué información ya está visible: marca, modelo, color, estado, accesorios incluidos, pantalla, teclado, puertos, stickers, etc.
-2. Determiná qué especificaciones críticas para el precio o descripción NO se pueden ver de ninguna manera (datos internos como RAM, almacenamiento, procesador, año de compra, etc.).
-3. Solo generá preguntas para esas cosas invisibles.
+Pensá como un comprador real en Facebook Marketplace o OLX. ¿Qué preguntarías en los comentarios antes de comprar esto?
 
-Ejemplos de lo que NO debés preguntar:
-- El color (se ve en la foto)
-- La marca o modelo si está visible en la foto
-- Si tiene cargador si se ve en la foto
-- El estado si se puede ver claramente
-- Nada que esté escrito o impreso en el producto y sea legible
+SOLO preguntá cosas que cumplan LAS TRES condiciones al mismo tiempo:
+1. No se puede saber mirando la foto
+2. No fue aclarado por el vendedor en la información adicional
+3. Cambia significativamente el precio o la decisión de compra
+
+Ejemplos BUENOS (cosas que un comprador real preguntaría):
+- iPhone: "¿Cuál modelo exacto es?" (12, 13 Pro, 14 Plus, etc.), "¿Cuánto almacenamiento tiene?" (64GB, 128GB, 256GB), "¿Está liberado o con operadora?"
+- Laptop: "¿Cuánta RAM tiene?", "¿Qué tamaño de disco?"
+- Auto: "¿Cuántos kilómetros tiene?", "¿De qué año es?"
+
+Ejemplos MALOS (no preguntes esto nunca):
+- "¿Qué procesador tiene?" (nadie lo pregunta en marketplace, no afecta la decisión de compra promedio)
+- "¿Qué significa el porcentaje de batería?" (es una pregunta sin sentido)
+- "¿De qué color es?" (se ve en la foto)
+- Cualquier spec técnica que solo le importaría a un ingeniero, no a un comprador casual
 
 Respondé ÚNICAMENTE con JSON válido:
 {
@@ -73,8 +81,7 @@ Respondé ÚNICAMENTE con JSON válido:
   ]
 }
 
-Máximo 4 preguntas. Solo las que realmente importan para describir y poner precio.
-Si needsQuestions es false, devolvé questions como array vacío.`
+Máximo 3 preguntas. Si no hay nada genuinamente útil que preguntar, devolvé needsQuestions: false.`
 
   return callGroq(imageFile, prompt)
 }

@@ -57,7 +57,7 @@ export default function UploadSection() {
     setAnalyzing(true)
 
     try {
-      const analysis = await analyzeForQuestions(images[0].file)
+      const analysis = await analyzeForQuestions(images[0].file, details)
 
       if (analysis.needsQuestions && analysis.questions?.length > 0) {
         setProductName(analysis.productName || 'tu producto')
