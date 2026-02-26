@@ -1,50 +1,120 @@
+import { useState } from 'react'
 import Navbar from './components/Navbar'
-import UploadSection from './components/UploadSection'
+import UploadHero from './components/UploadHero'
+import AnalyzingScreen from './components/AnalyzingScreen'
+import QuestionsScreen from './components/QuestionsScreen'
+import ResultScreen from './components/ResultScreen'
 
 export default function App() {
+  const [screen, setScreen] = useState('upload')
+  const [images, setImages] = useState([])
+  const [details, setDetails] = useState('')
+  const [productName, setProductName] = useState('')
+  const [questions, setQuestions] = useState([])
+  const [answers, setAnswers] = useState({})
+  const [result, setResult] = useState(null)
+  const [uploadError, setUploadError] = useState(null)
+
+  const handleStart = (imgs, det) => {
+    setImages(imgs)
+    setDetails(det)
+    setUploadError(null)
+    setScreen('analyzing')
+  }
+
+  const handleAnalysisDone = (analysis) => {
+    if (analysis.error) {
+      setUploadError(analysis.error)
+      setScreen('upload')
+      return
+    }
+    setProductName(analysis.productName || '')
+    if (analysis.needsQuestions && analysis.questions?.length > 0) {
+      setQuestions(analysis.questions)
+      setScreen('questions')
+    } else {
+      setQuestions([])
+      setAnswers({})
+      setScreen('generating')
+    }
+  }
+
+  const handleGenerate = (ans) => {
+    setAnswers(ans)
+    setScreen('generating')
+  }
+
+  const handleResultDone = (listing) => {
+    if (listing.error) {
+      setUploadError(listing.error)
+      setScreen('upload')
+      return
+    }
+    setResult(listing)
+    setScreen('result')
+  }
+
+  const handleRegenerate = () => setScreen('generating')
+
+  const handleReset = () => {
+    setImages([])
+    setDetails('')
+    setProductName('')
+    setQuestions([])
+    setAnswers({})
+    setResult(null)
+    setUploadError(null)
+    setScreen('upload')
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
+    <>
+      {/* Navbar always visible on every screen */}
+      <Navbar screen={screen} onReset={handleReset} onRegenerate={handleRegenerate} />
 
-      {/* Hero */}
-      <main className="pt-28 pb-20 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col items-center text-center">
-          {/* Badge */}
-          <div className="mb-6 inline-flex items-center gap-2 bg-violet-50 text-violet-700 text-xs font-semibold px-3.5 py-1.5 rounded-full border border-violet-100">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
-            Impulsado por IA · Gratis para empezar
-          </div>
+      {screen === 'upload' && (
+        <UploadHero onStart={handleStart} error={uploadError} />
+      )}
 
-          {/* H1 */}
-          <h1 className="text-5xl sm:text-6xl font-extrabold text-gray-900 tracking-tight leading-tight max-w-2xl">
-            Tu listing de{' '}
-            <span className="bg-gradient-to-r from-violet-600 to-indigo-500 bg-clip-text text-transparent">
-              Marketplace
-            </span>
-            , perfecto en segundos
-          </h1>
+      {screen === 'analyzing' && (
+        <AnalyzingScreen
+          mode="analyze"
+          images={images}
+          details={details}
+          onDone={handleAnalysisDone}
+        />
+      )}
 
-          {/* Subtitle */}
-          <p className="mt-5 text-lg text-gray-500 max-w-xl leading-relaxed">
-            Subí una foto de lo que querés vender. La IA analiza el producto, escribe una descripción que engancha y mejora tus fotos automáticamente.
-          </p>
+      {screen === 'questions' && (
+        <QuestionsScreen
+          images={images}
+          productName={productName}
+          questions={questions}
+          onProductNameChange={setProductName}
+          onGenerate={handleGenerate}
+          onBack={handleReset}
+        />
+      )}
 
-          {/* Social proof */}
-          <div className="mt-4 flex items-center gap-1.5 text-sm text-gray-400">
-            <div className="flex -space-x-1.5">
-              {['bg-pink-400', 'bg-blue-400', 'bg-green-400', 'bg-yellow-400'].map((c, i) => (
-                <div key={i} className={`w-6 h-6 rounded-full ${c} border-2 border-white`} />
-              ))}
-            </div>
-            <span>+1,200 listings creados esta semana</span>
-          </div>
+      {screen === 'generating' && (
+        <AnalyzingScreen
+          mode="generate"
+          images={images}
+          details={details}
+          answers={answers}
+          productName={productName}
+          onDone={handleResultDone}
+        />
+      )}
 
-          {/* Upload area */}
-          <div className="mt-12 w-full max-w-2xl">
-            <UploadSection />
-          </div>
-        </div>
-      </main>
-    </div>
+      {screen === 'result' && (
+        <ResultScreen
+          images={images}
+          result={result}
+          onReset={handleReset}
+          onRegenerate={handleRegenerate}
+        />
+      )}
+    </>
   )
 }
