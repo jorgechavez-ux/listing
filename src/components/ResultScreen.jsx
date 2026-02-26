@@ -26,7 +26,7 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
           {/* ── LEFT: Images ── */}
           <div className="space-y-3">
             {/* Main image */}
-            <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gray-100 shadow-sm group">
+            <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 shadow-sm group">
               <img
                 src={images[activeImage]?.url}
                 alt=""

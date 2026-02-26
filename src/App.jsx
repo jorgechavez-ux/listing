@@ -4,6 +4,7 @@ import UploadHero from './components/UploadHero'
 import AnalyzingScreen from './components/AnalyzingScreen'
 import QuestionsScreen from './components/QuestionsScreen'
 import ResultScreen from './components/ResultScreen'
+import PricingPage from './components/PricingPage'
 
 export default function App() {
   const [screen, setScreen] = useState('upload')
@@ -56,6 +57,8 @@ export default function App() {
 
   const handleRegenerate = () => setScreen('generating')
 
+  const handlePricing = () => setScreen('pricing')
+
   const handleReset = () => {
     setImages([])
     setDetails('')
@@ -70,7 +73,7 @@ export default function App() {
   return (
     <>
       {/* Navbar always visible on every screen */}
-      <Navbar screen={screen} onReset={handleReset} onRegenerate={handleRegenerate} />
+      <Navbar screen={screen} onReset={handleReset} onRegenerate={handleRegenerate} onPricing={handlePricing} />
 
       {screen === 'upload' && (
         <UploadHero onStart={handleStart} error={uploadError} />
@@ -114,6 +117,10 @@ export default function App() {
           onReset={handleReset}
           onRegenerate={handleRegenerate}
         />
+      )}
+
+      {screen === 'pricing' && (
+        <PricingPage onBack={handleReset} />
       )}
     </>
   )

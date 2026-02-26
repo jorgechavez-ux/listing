@@ -1,6 +1,6 @@
 import { Sparkles, Plus } from 'lucide-react'
 
-export default function Navbar({ screen = 'upload', onReset, onRegenerate }) {
+export default function Navbar({ screen = 'upload', onReset, onRegenerate, onPricing }) {
   return (
     <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -39,12 +39,12 @@ export default function Navbar({ screen = 'upload', onReset, onRegenerate }) {
           ) : (
             // Default: upload / questions / analyzing
             <>
-              <a
-                href="#pricing"
+              <button
+                onClick={onPricing}
                 className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-xl hover:bg-gray-100 transition-colors"
               >
                 Pricing
-              </a>
+              </button>
               <button className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-xl transition-colors">
                 Iniciar sesión
               </button>
