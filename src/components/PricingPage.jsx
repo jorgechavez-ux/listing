@@ -3,57 +3,57 @@ import { Check, Zap } from 'lucide-react'
 
 const plans = [
   {
-    name: 'Gratis',
-    desc: 'Para probar y entender el producto.',
+    name: 'Free',
+    desc: 'Try it out and see what it can do.',
     monthly: 0,
     yearly: 0,
-    cta: 'Empezar gratis',
+    cta: 'Get started free',
     ctaStyle: 'border',
     features: [
-      '5 listings por mes',
-      'Descripción con IA',
-      'Imágenes 1:1 optimizadas',
-      'Preguntas inteligentes',
-      'Copiar al portapapeles',
+      '5 listings per month',
+      'AI-generated descriptions',
+      'Optimized 1:1 images',
+      'Smart clarifying questions',
+      'Copy to clipboard',
     ],
-    missing: ['Mejora avanzada de imágenes', 'Historial de listings', 'Soporte prioritario'],
+    missing: ['Advanced image enhancement', 'Listing history', 'Priority support'],
   },
   {
     name: 'Pro',
-    desc: 'Para quien vende seguido y quiere resultados.',
+    desc: 'For regular sellers who want real results.',
     monthly: 9,
     yearly: 7,
-    cta: 'Empezar Pro',
+    cta: 'Start Pro',
     ctaStyle: 'solid',
     popular: true,
     features: [
-      '60 listings por mes',
-      'Descripción con IA mejorada',
-      'Imágenes 1:1 optimizadas',
-      'Preguntas inteligentes',
-      'Mejora avanzada de imágenes',
-      'Historial de listings',
-      'Soporte prioritario',
+      '60 listings per month',
+      'Enhanced AI descriptions',
+      'Optimized 1:1 images',
+      'Smart clarifying questions',
+      'Advanced image enhancement',
+      'Listing history',
+      'Priority support',
     ],
     missing: [],
   },
   {
-    name: 'Negocio',
-    desc: 'Para revendedores y tiendas con volumen alto.',
+    name: 'Business',
+    desc: 'For resellers and high-volume stores.',
     monthly: 29,
     yearly: 23,
-    cta: 'Hablar con ventas',
+    cta: 'Talk to sales',
     ctaStyle: 'border',
     features: [
-      'Listings ilimitados',
-      'Descripción con IA mejorada',
-      'Imágenes 1:1 optimizadas',
-      'Preguntas inteligentes',
-      'Mejora avanzada de imágenes',
-      'Historial de listings',
-      'Acceso API',
-      'Múltiples usuarios',
-      'Soporte dedicado',
+      'Unlimited listings',
+      'Enhanced AI descriptions',
+      'Optimized 1:1 images',
+      'Smart clarifying questions',
+      'Advanced image enhancement',
+      'Listing history',
+      'API access',
+      'Multiple users',
+      'Dedicated support',
     ],
     missing: [],
   },
@@ -70,14 +70,14 @@ export default function PricingPage({ onBack }) {
         <div className="text-center mb-14">
           <div className="inline-flex items-center gap-2 bg-violet-50 text-violet-700 text-xs font-semibold px-3.5 py-1.5 rounded-full border border-violet-100 mb-5">
             <Zap className="w-3.5 h-3.5" />
-            Precios simples, sin sorpresas
+            Simple pricing, no surprises
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">
-            Elegí tu plan
+            Choose your plan
           </h1>
           <p className="text-lg text-gray-500 max-w-md mx-auto">
-            Empezá gratis. Escalá cuando lo necesites.
+            Start free. Scale when you need to.
           </p>
 
           {/* Toggle */}
@@ -88,7 +88,7 @@ export default function PricingPage({ onBack }) {
                 !yearly ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Mensual
+              Monthly
             </button>
             <button
               onClick={() => setYearly(true)}
@@ -96,7 +96,7 @@ export default function PricingPage({ onBack }) {
                 yearly ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Anual
+              Yearly
               <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">
                 −20%
               </span>
@@ -119,7 +119,7 @@ export default function PricingPage({ onBack }) {
               {plan.popular && (
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
                   <span className="bg-gradient-to-r from-violet-600 to-indigo-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg shadow-violet-200">
-                    Más popular
+                    Most popular
                   </span>
                 </div>
               )}
@@ -141,12 +141,12 @@ export default function PricingPage({ onBack }) {
                 </span>
                 {plan.monthly > 0 && (
                   <span className={`text-sm font-medium pb-2 ${plan.popular ? 'text-gray-500' : 'text-gray-400'}`}>
-                    / mes
+                    / mo
                   </span>
                 )}
                 {plan.monthly === 0 && (
                   <span className={`text-sm font-medium pb-2 ${plan.popular ? 'text-gray-500' : 'text-gray-400'}`}>
-                    para siempre
+                    forever
                   </span>
                 )}
               </div>
@@ -192,7 +192,7 @@ export default function PricingPage({ onBack }) {
 
         {/* Footer note */}
         <p className="text-center text-sm text-gray-400 mt-10">
-          Sin contratos. Cancelá cuando quieras. Todos los planes incluyen facturación en USD.
+          No contracts. Cancel anytime. All plans billed in USD.
         </p>
 
       </div>

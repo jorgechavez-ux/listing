@@ -72,7 +72,7 @@ function ListingRow({ listing, onDelete }) {
           <button
             onClick={handleCopy}
             className="w-8 h-8 rounded-xl hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors"
-            title="Copiar"
+            title="Copy"
           >
             {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
           </button>
@@ -80,7 +80,7 @@ function ListingRow({ listing, onDelete }) {
             onClick={handleDelete}
             disabled={deleting}
             className="w-8 h-8 rounded-xl hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
-            title="Eliminar"
+            title="Delete"
           >
             {deleting
               ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -102,11 +102,11 @@ function ListingRow({ listing, onDelete }) {
           <p className="text-sm text-gray-600 leading-relaxed mt-4">{listing.description}</p>
           <div className="flex gap-4 mt-3">
             <div>
-              <p className="text-xs text-gray-400 font-medium mb-0.5">Precio</p>
+              <p className="text-xs text-gray-400 font-medium mb-0.5">Price</p>
               <p className="text-sm font-bold text-gray-900">{listing.price}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-400 font-medium mb-0.5">Categoría</p>
+              <p className="text-xs text-gray-400 font-medium mb-0.5">Category</p>
               <p className="text-sm font-semibold text-gray-700">{listing.category}</p>
             </div>
           </div>
@@ -175,9 +175,9 @@ export default function HistoryPage() {
         {!loading && listings.length > 0 && (
           <>
             <div className="hidden sm:grid grid-cols-[1fr_80px_140px_100px] gap-4 px-5 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
-              <span>Producto</span>
-              <span>Precio</span>
-              <span>Categoría</span>
+              <span>Product</span>
+              <span>Price</span>
+              <span>Category</span>
               <span></span>
             </div>
 
@@ -188,7 +188,7 @@ export default function HistoryPage() {
             </div>
 
             <p className="text-xs text-gray-400 text-center mt-6">
-              {listings.length} listing{listings.length !== 1 ? 's' : ''} en total
+              {listings.length} listing{listings.length !== 1 ? 's' : ''} total
             </p>
           </>
         )}
