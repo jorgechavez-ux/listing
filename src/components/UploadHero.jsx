@@ -46,19 +46,19 @@ export default function UploadHero({ onStart, error }) {
 
         <div className="mb-6 inline-flex items-center gap-2 bg-violet-50 text-violet-700 text-xs font-semibold px-3.5 py-1.5 rounded-full border border-violet-100">
           <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
-          Impulsado por IA · Gratis para empezar
+          Powered by AI · Free to start
         </div>
 
         <h1 className="text-5xl sm:text-6xl font-extrabold text-gray-900 tracking-tight leading-tight max-w-2xl">
-          Tu listing de{' '}
+          Your{' '}
           <span className="bg-gradient-to-r from-violet-600 to-indigo-500 bg-clip-text text-transparent">
             Marketplace
           </span>
-          , perfecto en segundos
+          {' '}listing, perfect in seconds
         </h1>
 
         <p className="mt-5 text-lg text-gray-500 max-w-xl leading-relaxed">
-          Subí una foto de lo que querés vender. La IA analiza el producto, escribe una descripción que engancha y mejora tus fotos automáticamente.
+          Upload a photo of what you want to sell. The AI analyzes the product, writes a description that hooks buyers, and enhances your photos automatically.
         </p>
 
         <div className="mt-4 flex items-center gap-1.5 text-sm text-gray-400">
@@ -67,7 +67,7 @@ export default function UploadHero({ onStart, error }) {
               <div key={i} className={`w-6 h-6 rounded-full ${c} border-2 border-white`} />
             ))}
           </div>
-          <span>+1,200 listings creados esta semana</span>
+          <span>+1,200 listings created this week</span>
         </div>
 
         <div className="mt-12 w-full max-w-2xl space-y-4">
@@ -93,8 +93,8 @@ export default function UploadHero({ onStart, error }) {
             {processing && (
               <div className="flex flex-col items-center justify-center gap-3 py-8">
                 <Loader2 className="w-8 h-8 text-violet-500 animate-spin" />
-                <p className="text-sm font-medium text-gray-600">Optimizando imágenes...</p>
-                <p className="text-xs text-gray-400">Recortando a 1:1 y mejorando calidad</p>
+                <p className="text-sm font-medium text-gray-600">Optimizing images...</p>
+                <p className="text-xs text-gray-400">Cropping to 1:1 and enhancing quality</p>
               </div>
             )}
 
@@ -104,8 +104,8 @@ export default function UploadHero({ onStart, error }) {
                   <Upload className="w-6 h-6 text-violet-500" />
                 </div>
                 <div className="text-center">
-                  <p className="font-semibold text-gray-800">Sube las fotos de tu producto</p>
-                  <p className="text-sm text-gray-400 mt-1">Arrastrá acá o hacé click · JPG, PNG, WEBP</p>
+                  <p className="font-semibold text-gray-800">Upload your product photos</p>
+                  <p className="text-sm text-gray-400 mt-1">Drag here or click to choose · JPG, PNG, WEBP</p>
                 </div>
               </>
             )}
@@ -137,7 +137,7 @@ export default function UploadHero({ onStart, error }) {
                 </div>
                 {/* Info pill */}
                 <p className="text-xs text-gray-400 text-center">
-                  Imágenes optimizadas a 1:1 · 1080×1080px
+                  Images optimized to 1:1 · 1080×1080px
                 </p>
               </div>
             )}
@@ -156,13 +156,13 @@ export default function UploadHero({ onStart, error }) {
           {hasImages && !processing && (
             <div className="bg-white rounded-2xl border border-gray-200 p-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                ¿Algo extra que la IA deba saber?{' '}
-                <span className="text-gray-400 font-normal">(opcional)</span>
+                Anything extra the AI should know?{' '}
+                <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               <textarea
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
-                placeholder="Ej: lo compré hace 6 meses, tiene un rayón chico atrás, incluye accesorios originales..."
+                placeholder="e.g. bought it 6 months ago, has a small scratch on the back, includes original accessories..."
                 rows={3}
                 className="w-full text-sm text-gray-700 placeholder-gray-400 resize-none outline-none"
               />

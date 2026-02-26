@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Pencil, Check, ChevronRight, SkipForward, Sparkles } from 'lucide-react'
+import logo from '../assets/logo-sl.png'
 
 export default function QuestionsScreen({ images, productName, questions, onProductNameChange, onGenerate }) {
   const [answers, setAnswers] = useState({})
@@ -28,7 +29,7 @@ export default function QuestionsScreen({ images, productName, questions, onProd
 
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">
-                He reconocido
+                I recognized
               </p>
               {editingName ? (
                 <div className="flex items-center gap-2">
@@ -68,9 +69,9 @@ export default function QuestionsScreen({ images, productName, questions, onProd
         {questions.length > 0 ? (
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm mb-4">
             <div className="px-5 py-4 bg-gray-50 border-b border-gray-100">
-              <p className="text-sm font-semibold text-gray-900">Una última cosa...</p>
+              <p className="text-sm font-semibold text-gray-900">One last thing...</p>
               <p className="text-xs text-gray-400 mt-0.5">
-                Completá lo que sepas. Lo que dejés en blanco no se incluye.
+                Fill in what you know. Blank fields won't be included.
               </p>
             </div>
             <div className="px-5 py-5 space-y-4">
@@ -92,7 +93,7 @@ export default function QuestionsScreen({ images, productName, questions, onProd
           </div>
         ) : (
           <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-4 text-sm text-emerald-700 font-medium">
-            Tengo todo lo que necesito para armar tu listing.
+            I have everything I need to build your listing.
           </div>
         )}
 
@@ -104,7 +105,7 @@ export default function QuestionsScreen({ images, productName, questions, onProd
               className="flex items-center gap-1.5 px-4 py-3.5 text-sm font-medium text-gray-500 hover:text-gray-800 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-all"
             >
               <SkipForward className="w-4 h-4" />
-              Saltar
+              Skip
             </button>
           )}
           <button
@@ -112,7 +113,7 @@ export default function QuestionsScreen({ images, productName, questions, onProd
             className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-500 text-white font-semibold text-sm hover:from-violet-700 hover:to-indigo-600 transition-all shadow-md shadow-violet-200 flex items-center justify-center gap-2"
           >
             <Sparkles className="w-4 h-4" />
-            Generar listing
+            Generate listing
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>

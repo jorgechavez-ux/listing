@@ -1,19 +1,29 @@
 import { useState } from 'react'
 import { Copy, Check, Sparkles, ChevronLeft, ChevronRight, Zap } from 'lucide-react'
 
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false)
+  const handle = async () => {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button
+      onClick={handle}
+      className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors shrink-0"
+      title="Copy"
+    >
+      {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+    </button>
+  )
+}
+
 export default function ResultScreen({ images, result: initialResult, onReset, onRegenerate }) {
   const [result, setResult] = useState(initialResult)
   const [activeImage, setActiveImage] = useState(0)
-  const [copied, setCopied] = useState(false)
 
   const update = (field, value) => setResult((prev) => ({ ...prev, [field]: value }))
-
-  const handleCopy = async () => {
-    const text = `${result.title}\n\n${result.description}\n\nPrecio: ${result.price}\nCategoría: ${result.category}`
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2200)
-  }
 
   const prevImage = () => setActiveImage((i) => (i - 1 + images.length) % images.length)
   const nextImage = () => setActiveImage((i) => (i + 1) % images.length)
@@ -25,7 +35,6 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
 
           {/* ── LEFT: Images ── */}
           <div className="space-y-3">
-            {/* Main image */}
             <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 shadow-sm group">
               <img
                 src={images[activeImage]?.url}
@@ -33,13 +42,11 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
                 className="w-full h-full object-cover transition-opacity duration-200"
               />
 
-              {/* AI enhanced badge */}
               <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/55 backdrop-blur-sm text-white text-xs font-medium px-2.5 py-1.5 rounded-full">
                 <Zap className="w-3 h-3 text-yellow-400" />
-                Mejorada con IA
+                Enhanced with AI
               </div>
 
-              {/* Nav arrows (only if multiple images) */}
               {images.length > 1 && (
                 <>
                   <button
@@ -54,15 +61,12 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
-                  {/* Dot indicators */}
                   <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
                     {images.map((_, i) => (
                       <button
                         key={i}
                         onClick={() => setActiveImage(i)}
-                        className={`w-1.5 h-1.5 rounded-full transition-all ${
-                          i === activeImage ? 'bg-white w-4' : 'bg-white/50'
-                        }`}
+                        className={`h-1.5 rounded-full transition-all ${i === activeImage ? 'bg-white w-4' : 'bg-white/50 w-1.5'}`}
                       />
                     ))}
                   </div>
@@ -70,7 +74,6 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
               )}
             </div>
 
-            {/* Thumbnail strip */}
             {images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {images.map((img, i) => (
@@ -97,14 +100,15 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
               <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center">
                 <Check className="w-3 h-3 text-emerald-600" />
               </div>
-              <span className="text-sm font-semibold text-gray-700">Listing listo para publicar</span>
+              <span className="text-sm font-semibold text-gray-700">Your listing is ready</span>
             </div>
 
             {/* Title */}
             <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 block">
-                Título
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Title</label>
+                <CopyButton text={result.title} />
+              </div>
               <input
                 value={result.title}
                 onChange={(e) => update('title', e.target.value)}
@@ -114,9 +118,10 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
 
             {/* Description */}
             <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 block">
-                Descripción
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Description</label>
+                <CopyButton text={result.description} />
+              </div>
               <textarea
                 value={result.description}
                 onChange={(e) => update('description', e.target.value)}
@@ -128,9 +133,10 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
             {/* Price + Category */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 block">
-                  Precio
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Price</label>
+                  <CopyButton text={result.price} />
+                </div>
                 <input
                   value={result.price}
                   onChange={(e) => update('price', e.target.value)}
@@ -138,9 +144,10 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 block">
-                  Categoría
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Category</label>
+                  <CopyButton text={result.category} />
+                </div>
                 <input
                   value={result.category}
                   onChange={(e) => update('category', e.target.value)}
@@ -152,14 +159,11 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
             {/* Action buttons */}
             <div className="space-y-2 pt-1">
               <button
-                onClick={handleCopy}
+                onClick={onReset}
                 className="w-full py-3.5 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
               >
-                {copied ? (
-                  <><Check className="w-4 h-4 text-emerald-400" /> Copiado al portapapeles</>
-                ) : (
-                  <><Copy className="w-4 h-4" /> Copiar descripción completa</>
-                )}
+                <Check className="w-4 h-4" />
+                Done
               </button>
 
               <div className="grid grid-cols-2 gap-2">
@@ -168,15 +172,15 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
                   className="py-3 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 transition-all flex items-center justify-center gap-1.5"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  Pulir con IA
+                  Regenerate
                 </button>
                 <button
                   disabled
                   className="py-3 rounded-xl border border-dashed border-gray-200 text-sm font-medium text-gray-400 cursor-not-allowed flex items-center justify-center gap-1.5"
                 >
-                  Publicar directo
+                  Post on Marketplace
                   <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full font-semibold">
-                    Pronto
+                    Soon
                   </span>
                 </button>
               </div>

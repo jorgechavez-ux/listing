@@ -6,14 +6,14 @@ import { MultiStepLoader } from './MultiStepLoader'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const ANALYZE_STATES = [
-  { text: 'Subiendo imágenes' },
-  { text: 'Mejorando calidad con IA' },
-  { text: 'Reconociendo el producto' },
+  { text: 'Uploading images' },
+  { text: 'Enhancing quality with AI' },
+  { text: 'Recognizing product' },
 ]
 
 const GENERATE_STATES = [
-  { text: 'Procesando información' },
-  { text: 'Redactando tu listing' },
+  { text: 'Processing information' },
+  { text: 'Writing your listing' },
 ]
 
 export default function AnalyzingScreen({ mode, images, details, answers, productName, onDone }) {

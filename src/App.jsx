@@ -5,8 +5,16 @@ import AnalyzingScreen from './components/AnalyzingScreen'
 import QuestionsScreen from './components/QuestionsScreen'
 import ResultScreen from './components/ResultScreen'
 import PricingPage from './components/PricingPage'
+import HistoryPage from './components/HistoryPage'
+import AuthModal from './components/AuthModal'
+import { useAuth } from './hooks/useAuth'
+import { getUsage, incrementUsage } from './lib/usage'
+import { saveListing } from './lib/listings'
+import { FREE_TIER_LIMIT } from './config'
 
 export default function App() {
+  const { user, loading: authLoading, signOut } = useAuth()
+
   const [screen, setScreen] = useState('upload')
   const [images, setImages] = useState([])
   const [details, setDetails] = useState('')
@@ -16,11 +24,40 @@ export default function App() {
   const [result, setResult] = useState(null)
   const [uploadError, setUploadError] = useState(null)
 
-  const handleStart = (imgs, det) => {
+  // Auth modal
+  const [showAuth, setShowAuth] = useState(false)
+  // Pending action to run after login
+  const [pendingStart, setPendingStart] = useState(null)
+
+  // Called when user clicks "Generate listing" in UploadHero
+  const handleStart = async (imgs, det) => {
+    if (!user) {
+      // Save what they wanted to do, then show login
+      setPendingStart({ imgs, det })
+      setShowAuth(true)
+      return
+    }
+
+    const { canGenerate, count } = await getUsage()
+    if (!canGenerate) {
+      setUploadError(`Alcanzaste el límite de ${FREE_TIER_LIMIT} listings gratuitos este mes. Pasate a Pro para generar más.`)
+      return
+    }
+
     setImages(imgs)
     setDetails(det)
     setUploadError(null)
     setScreen('analyzing')
+  }
+
+  // Called after successful login
+  const handleAuthSuccess = async () => {
+    setShowAuth(false)
+    if (pendingStart) {
+      const { imgs, det } = pendingStart
+      setPendingStart(null)
+      await handleStart(imgs, det)
+    }
   }
 
   const handleAnalysisDone = (analysis) => {
@@ -45,12 +82,23 @@ export default function App() {
     setScreen('generating')
   }
 
-  const handleResultDone = (listing) => {
+  const handleResultDone = async (listing) => {
     if (listing.error) {
       setUploadError(listing.error)
       setScreen('upload')
       return
     }
+    // Save to DB and count usage in parallel
+    await Promise.all([
+      saveListing({
+        title: listing.title,
+        description: listing.description,
+        price: listing.price,
+        category: listing.category,
+        productName,
+      }),
+      incrementUsage(),
+    ])
     setResult(listing)
     setScreen('result')
   }
@@ -58,6 +106,7 @@ export default function App() {
   const handleRegenerate = () => setScreen('generating')
 
   const handlePricing = () => setScreen('pricing')
+  const handleHistory = () => setScreen('history')
 
   const handleReset = () => {
     setImages([])
@@ -70,10 +119,19 @@ export default function App() {
     setScreen('upload')
   }
 
+  if (authLoading) return null
+
   return (
     <>
-      {/* Navbar always visible on every screen */}
-      <Navbar screen={screen} onReset={handleReset} onRegenerate={handleRegenerate} onPricing={handlePricing} />
+      <Navbar
+        screen={screen}
+        user={user}
+        onReset={handleReset}
+        onPricing={handlePricing}
+        onHistory={handleHistory}
+        onSignOut={signOut}
+        onSignIn={() => setShowAuth(true)}
+      />
 
       {screen === 'upload' && (
         <UploadHero onStart={handleStart} error={uploadError} />
@@ -121,6 +179,18 @@ export default function App() {
 
       {screen === 'pricing' && (
         <PricingPage onBack={handleReset} />
+      )}
+
+      {screen === 'history' && (
+        <HistoryPage />
+      )}
+
+      {/* Auth modal — rendered on top of any screen */}
+      {showAuth && (
+        <AuthModal
+          onClose={() => { setShowAuth(false); setPendingStart(null) }}
+          onSuccess={handleAuthSuccess}
+        />
       )}
     </>
   )
