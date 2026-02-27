@@ -20,6 +20,13 @@ export async function createPortalSession(flow = null) {
   return data.url
 }
 
+export async function reactivateSubscription() {
+  const { data, error } = await supabase.functions.invoke('reactivate-subscription', {})
+  if (error) throw new Error(error.message)
+  if (data?.error) throw new Error(data.error)
+  return data
+}
+
 export async function cancelSubscription() {
   const { data, error } = await supabase.functions.invoke('cancel-subscription', {})
   if (error) throw new Error(error.message)

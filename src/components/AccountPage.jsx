@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Mail, LogOut, Loader2, Check, Pencil, X, Zap, CreditCard, RefreshCw, AlertTriangle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getUsage } from '../lib/usage'
-import { createPortalSession, cancelSubscription } from '../lib/stripe'
+import { createPortalSession, cancelSubscription, reactivateSubscription } from '../lib/stripe'
 
 const PLAN_META = {
   free:     { label: 'Free',     className: 'bg-gray-100 text-gray-600' },
@@ -24,7 +24,8 @@ export default function AccountPage({ user, onSignOut, onPricing }) {
 
   const [usage, setUsage]             = useState(null)
   const [showCancelModal, setShowCancelModal] = useState(false)
-  const [cancelling, setCancelling]   = useState(false)
+  const [cancelling, setCancelling]     = useState(false)
+  const [reactivating, setReactivating] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [error, setError]             = useState(null)
 
@@ -54,6 +55,19 @@ export default function AccountPage({ user, onSignOut, onPricing }) {
       setError(err.message)
     }
     setCancelling(false)
+  }
+
+  const handleReactivate = async () => {
+    setReactivating(true)
+    setError(null)
+    try {
+      await reactivateSubscription()
+      const updated = await getUsage()
+      setUsage(updated)
+    } catch (err) {
+      setError(err.message)
+    }
+    setReactivating(false)
   }
 
   const handleUpdatePayment = async () => {
@@ -209,42 +223,59 @@ export default function AccountPage({ user, onSignOut, onPricing }) {
                 {error && <p className="text-xs text-red-500">{error}</p>}
 
                 {/* Action buttons */}
-                {!isCancelling && (
-                  <div className="space-y-2 pt-1">
-                    {/* Change plan — always visible */}
-                    <button
-                      onClick={onPricing}
-                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-500 text-white text-sm font-semibold hover:from-violet-700 hover:to-indigo-600 transition-all flex items-center justify-center gap-2"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                      {isPaid ? 'Change plan' : 'Upgrade plan'}
-                    </button>
+                <div className="space-y-2 pt-1">
+                  {isCancelling ? (
+                    <>
+                      <button
+                        onClick={handleReactivate}
+                        disabled={reactivating}
+                        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-500 text-white text-sm font-semibold hover:from-violet-700 hover:to-indigo-600 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                      >
+                        {reactivating
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <RefreshCw className="w-4 h-4" />}
+                        Reactivate subscription
+                      </button>
+                      <button
+                        onClick={onPricing}
+                        className="w-full py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        Change plan
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={onPricing}
+                        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-500 text-white text-sm font-semibold hover:from-violet-700 hover:to-indigo-600 transition-all flex items-center justify-center gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        {isPaid ? 'Change plan' : 'Upgrade plan'}
+                      </button>
 
-                    {/* Paid-only actions */}
-                    {isPaid && (
-                      <>
-                        <button
-                          onClick={handleUpdatePayment}
-                          disabled={portalLoading}
-                          className="w-full py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-                        >
-                          {portalLoading
-                            ? <Loader2 className="w-4 h-4 animate-spin" />
-                            : <CreditCard className="w-4 h-4 text-gray-400" />
-                          }
-                          Update payment method
-                        </button>
-
-                        <button
-                          onClick={() => setShowCancelModal(true)}
-                          className="w-full py-2.5 rounded-xl border border-red-100 text-sm font-semibold text-red-400 hover:bg-red-50 hover:border-red-200 transition-colors"
-                        >
-                          Cancel subscription
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
+                      {isPaid && (
+                        <>
+                          <button
+                            onClick={handleUpdatePayment}
+                            disabled={portalLoading}
+                            className="w-full py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                          >
+                            {portalLoading
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <CreditCard className="w-4 h-4 text-gray-400" />}
+                            Update payment method
+                          </button>
+                          <button
+                            onClick={() => setShowCancelModal(true)}
+                            className="w-full py-2.5 rounded-xl border border-red-100 text-sm font-semibold text-red-400 hover:bg-red-50 hover:border-red-200 transition-colors"
+                          >
+                            Cancel subscription
+                          </button>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>
