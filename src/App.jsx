@@ -29,6 +29,7 @@ export default function App() {
   const [images, setImages] = useState([])
   const [details, setDetails] = useState('')
   const [productName, setProductName] = useState('')
+  const [productContext, setProductContext] = useState('')
   const [questions, setQuestions] = useState([])
   const [answers, setAnswers] = useState({})
   const [result, setResult] = useState(null)
@@ -77,6 +78,7 @@ export default function App() {
       return
     }
     setProductName(analysis.productName || '')
+    setProductContext(analysis._webContext || '')
     if (analysis.needsQuestions && analysis.questions?.length > 0) {
       setQuestions(analysis.questions)
       setScreen('questions')
@@ -123,6 +125,7 @@ export default function App() {
     setImages([])
     setDetails('')
     setProductName('')
+    setProductContext('')
     setQuestions([])
     setAnswers({})
     setResult(null)
@@ -176,6 +179,7 @@ export default function App() {
           details={details}
           answers={answers}
           productName={productName}
+          productContext={productContext}
           onDone={handleResultDone}
         />
       )}

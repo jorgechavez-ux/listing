@@ -7,8 +7,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const ANALYZE_STATES = [
   { text: 'Uploading images' },
-  { text: 'Enhancing quality with AI' },
   { text: 'Recognizing product' },
+  { text: 'Searching the web' },
+  { text: 'Preparing your listing' },
 ]
 
 const GENERATE_STATES = [
@@ -16,7 +17,7 @@ const GENERATE_STATES = [
   { text: 'Writing your listing' },
 ]
 
-export default function AnalyzingScreen({ mode, images, details, answers, productName, onDone }) {
+export default function AnalyzingScreen({ mode, images, details, answers, productName, productContext, onDone }) {
   const [step, setStep] = useState(0)
   const [error, setError] = useState(null)
 
@@ -28,26 +29,31 @@ export default function AnalyzingScreen({ mode, images, details, answers, produc
     const run = async () => {
       try {
         if (mode === 'analyze') {
-          setStep(0)
+          setStep(0) // Uploading images
+
+          // Start API in parallel with the UX steps
           const apiPromise = analyzeForQuestions(images[0].file, details)
 
-          await sleep(900)
+          await sleep(800)
           if (cancelled) return
-          setStep(1)
+          setStep(1) // Recognizing product
 
-          await sleep(1300)
+          await sleep(1500)
           if (cancelled) return
-          setStep(2)
+          setStep(2) // Searching the web
 
+          // Wait for the full result (identify + search + analyze)
           const result = await apiPromise
           if (cancelled) return
 
-          await sleep(500)
+          setStep(3) // Preparing
+          await sleep(400)
           if (!cancelled) onDone(result)
+
         } else {
           setStep(0)
           const files = images.map((img) => img.file)
-          const apiPromise = generateListing(files, details, answers || {})
+          const apiPromise = generateListing(files, details, answers || {}, productContext || '')
 
           await sleep(800)
           if (cancelled) return

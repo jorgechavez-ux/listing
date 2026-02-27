@@ -9,6 +9,7 @@ async function fileToBase64(file) {
   })
 }
 
+// Vision call (Llama 4 Scout)
 async function callGroq(imageFile, prompt) {
   const base64 = await fileToBase64(imageFile)
   const mimeType = imageFile.type
@@ -21,15 +22,13 @@ async function callGroq(imageFile, prompt) {
     },
     body: JSON.stringify({
       model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } },
-            { type: 'text', text: prompt },
-          ],
-        },
-      ],
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } },
+          { type: 'text', text: prompt },
+        ],
+      }],
       temperature: 0.4,
       response_format: { type: 'json_object' },
     }),
@@ -46,13 +45,82 @@ async function callGroq(imageFile, prompt) {
   return JSON.parse(text)
 }
 
+// Text-only call with web search (compound-beta-mini)
+async function searchProductInfo(searchQuery) {
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'compound-beta-mini',
+        messages: [{
+          role: 'user',
+          content: `Search the web for: "${searchQuery}"
+
+Find the exact product full name (brand + model + variant), typical used/resale price in USD, and 2-3 specs a marketplace buyer would care about.
+Reply with ONLY this JSON and nothing else:
+{"exactName":"...","usedPrice":"$X–$Y","specs":"...","found":true}
+If you can't find it, reply: {"found":false}`,
+        }],
+        temperature: 0.1,
+      }),
+    })
+
+    if (!response.ok) return null
+
+    const data = await response.json()
+    const text = data.choices?.[0]?.message?.content || ''
+
+    // Extract JSON — compound-beta sometimes adds surrounding text
+    const start = text.indexOf('{')
+    const end   = text.lastIndexOf('}')
+    if (start === -1 || end === -1) return null
+
+    const parsed = JSON.parse(text.slice(start, end + 1))
+    return parsed?.found ? parsed : null
+  } catch {
+    return null // Silently fail — visual data is used as fallback
+  }
+}
+
+// Step 0 (internal): quick visual identification + search query
+async function identifyProduct(imageFile) {
+  try {
+    return await callGroq(imageFile, `Look at this product photo.
+Reply ONLY with valid JSON:
+{
+  "productName": "most specific name you can identify (e.g. 'Nike Air Max 95', 'iPhone 14 Pro 128GB', 'IKEA Poäng armchair'). If generic, describe it (e.g. 'wooden dining chair')",
+  "searchQuery": "Google search query to identify this exact product and find its price (e.g. 'Nike Air Max 95 white sneaker resale price')",
+  "shouldSearch": true if it's a specific branded or identifiable product where a web search would return useful info, false if it's too generic
+}`)
+  } catch {
+    return null
+  }
+}
+
 // Step 1: analyze the photo and decide if questions are needed
 export async function analyzeForQuestions(imageFile, extraDetails = '') {
+  // -- Phase A: quick visual ID --
+  const identified = await identifyProduct(imageFile)
+
+  // -- Phase B: web search (only for branded/identifiable products) --
+  let webContext = ''
+  if (identified?.shouldSearch && identified?.searchQuery) {
+    const found = await searchProductInfo(identified.searchQuery)
+    if (found) {
+      webContext = `\nWeb search confirmed: exact product is "${found.exactName}". Typical used market price: ${found.usedPrice}. Key specs: ${found.specs}.`
+    }
+  }
+
+  // -- Phase C: full analysis with enriched context --
   const extraContext = extraDetails.trim()
-    ? `\nThe seller already clarified the following: "${extraDetails.trim()}"\nTreat this as available information — do not ask anything already answered here.`
+    ? `\nThe seller already clarified the following: "${extraDetails.trim()}"\nDo not ask anything already answered here.`
     : ''
 
-  const prompt = `Analyze this photo of a product someone wants to sell on Marketplace.${extraContext}
+  const prompt = `Analyze this photo of a product someone wants to sell on Marketplace.${extraContext}${webContext}
 
 Think like a real buyer on Facebook Marketplace. What would you ask in the comments before buying this?
 
@@ -67,15 +135,14 @@ GOOD examples (things a real buyer would ask):
 - Car: "How many miles does it have?", "What year is it?"
 
 BAD examples (never ask these):
-- "What processor does it have?" (nobody asks this on marketplace, doesn't affect the average buying decision)
-- "What does the battery percentage mean?" (nonsensical question)
+- "What processor does it have?" (nobody asks this on marketplace)
 - "What color is it?" (visible in the photo)
-- Any technical spec that only an engineer would care about, not a casual buyer
+- Any spec already answered by the web search above
 
 Reply ONLY with valid JSON:
 {
   "needsQuestions": true or false,
-  "productName": "specific name of the detected product",
+  "productName": "${identified?.productName || 'detected product name'}",
   "questions": [
     { "id": "unique_id", "label": "Short question for the user", "placeholder": "e.g. ..." }
   ]
@@ -83,11 +150,16 @@ Reply ONLY with valid JSON:
 
 Maximum 3 questions. If there is nothing genuinely useful to ask, return needsQuestions: false.`
 
-  return callGroq(imageFile, prompt)
+  const result = await callGroq(imageFile, prompt)
+
+  // Attach web context so generateListing can use it too
+  result._webContext = webContext
+
+  return result
 }
 
 // Step 2: generate the listing with all available info
-export async function generateListing(imageFiles, extraDetails, answers = {}) {
+export async function generateListing(imageFiles, extraDetails, answers = {}, productContext = '') {
   const extraContext = extraDetails.trim()
     ? `\nAdditional details from the seller: "${extraDetails.trim()}"` : ''
 
@@ -97,9 +169,12 @@ export async function generateListing(imageFiles, extraDetails, answers = {}) {
     .join('\n')
 
   const specsContext = answersContext
-    ? `\nProduct specifications:\n${answersContext}` : ''
+    ? `\nProduct specifications provided by seller:\n${answersContext}` : ''
 
-  const prompt = `You are a Marketplace sales expert (Facebook Marketplace, OfferUp, Craigslist, etc.). Analyze the photo and create an attractive listing to sell the product.${extraContext}${specsContext}
+  const webCtx = productContext
+    ? `\nVerified product info from web:\n${productContext}` : ''
+
+  const prompt = `You are a Marketplace sales expert (Facebook Marketplace, OfferUp, Craigslist, etc.). Analyze the photo and create an attractive listing to sell the product.${extraContext}${specsContext}${webCtx}
 
 Reply ONLY with valid JSON:
 {
@@ -109,7 +184,7 @@ Reply ONLY with valid JSON:
   "category": "most appropriate category for this product"
 }
 
-Rules: no generic AI phrases, natural and direct tone, everything in English.`
+Rules: no generic AI phrases, natural and direct tone, everything in English. If web info is available, use the exact product name and be accurate with the price suggestion.`
 
   return callGroq(imageFiles[0], prompt)
 }
