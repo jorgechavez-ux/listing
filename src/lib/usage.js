@@ -1,25 +1,35 @@
 import { supabase } from './supabase'
-import { FREE_TIER_LIMIT } from '../config'
+import { PLAN_LIMITS } from '../config'
 
-// Returns "YYYY-MM" for the current month
 const currentMonth = () => new Date().toISOString().slice(0, 7)
 
 /**
  * Returns { count, limit, canGenerate } for the current user.
- * Usage is stored in user_metadata: { gen_count, gen_month }
+ * Respects the user's active subscription plan.
  */
 export async function getUsage() {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { count: 0, limit: FREE_TIER_LIMIT, canGenerate: false }
+  if (!user) return { count: 0, limit: PLAN_LIMITS.free, canGenerate: false }
+
+  // Check active subscription
+  const { data: sub } = await supabase
+    .from('subscriptions')
+    .select('plan, status')
+    .eq('user_id', user.id)
+    .single()
+
+  const active = sub?.status === 'active' || sub?.status === 'trialing'
+  const plan = active ? (sub?.plan || 'free') : 'free'
+  const limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free
+
+  // Business = unlimited
+  if (limit === Infinity) return { count: 0, limit: Infinity, canGenerate: true }
 
   const meta = user.user_metadata || {}
   const month = currentMonth()
-
-  // Reset counter if it's a new month
   const count = meta.gen_month === month ? (meta.gen_count ?? 0) : 0
-  const limit = FREE_TIER_LIMIT // swap for plan-based limit later
 
-  return { count, limit, canGenerate: count < limit }
+  return { count, limit, canGenerate: count < limit, plan }
 }
 
 /**

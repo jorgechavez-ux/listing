@@ -1,8 +1,8 @@
-import { LogOut } from 'lucide-react'
+import { LogOut, UserCircle2 } from 'lucide-react'
 import { useState } from 'react'
 import logo from '../assets/logo-sl.png'
 
-export default function Navbar({ screen = 'upload', user, onReset, onPricing, onHistory, onSignOut, onSignIn }) {
+export default function Navbar({ screen = 'upload', user, onReset, onPricing, onHistory, onAccount, onSignOut, onSignIn }) {
   const [showUserMenu, setShowUserMenu] = useState(false)
 
   const displayName = user?.user_metadata?.full_name
@@ -61,10 +61,17 @@ export default function Navbar({ screen = 'upload', user, onReset, onPricing, on
                       <p className="text-xs text-gray-400 truncate">{user.email}</p>
                     </div>
                     <button
-                      onClick={() => { setShowUserMenu(false); onSignOut() }}
+                      onClick={() => { setShowUserMenu(false); onAccount() }}
                       className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                      <LogOut className="w-4 h-4 text-gray-400" />
+                      <UserCircle2 className="w-4 h-4 text-gray-400" />
+                      My account
+                    </button>
+                    <button
+                      onClick={() => { setShowUserMenu(false); onSignOut() }}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
                       Sign out
                     </button>
                   </div>

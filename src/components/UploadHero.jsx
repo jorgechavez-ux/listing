@@ -41,15 +41,15 @@ export default function UploadHero({ onStart, error }) {
   const hasImages = images.length > 0
 
   return (
-    <main className="pt-28 pb-20 px-6">
-      <div className="max-w-6xl mx-auto flex flex-col items-center text-center">
+    <main className="pt-28 pb-20 px-6 h-screen">
+      <div className="max-w-6xl mx-auto flex flex-col items-center text-center h-full justify-center">
 
         <div className="mb-6 inline-flex items-center gap-2 bg-violet-50 text-violet-700 text-xs font-semibold px-3.5 py-1.5 rounded-full border border-violet-100">
           <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
           Powered by AI · Free to start
         </div>
 
-        <h1 className="text-5xl sm:text-6xl font-extrabold text-gray-900 tracking-tight leading-tight max-w-2xl">
+        <h1 className="text-5xl sm:text-6xl font-extrabold text-gray-900 tracking-tight leading-tight max-w-3xl">
           Your{' '}
           <span className="bg-gradient-to-r from-violet-600 to-indigo-500 bg-clip-text text-transparent">
             Marketplace

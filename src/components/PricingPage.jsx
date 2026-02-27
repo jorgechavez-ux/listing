@@ -1,8 +1,17 @@
-import { useState } from 'react'
-import { Check, Zap } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Check, Zap, Loader2, PartyPopper } from 'lucide-react'
+import { createCheckoutSession } from '../lib/stripe'
+
+const PRICE_IDS = {
+  pro_monthly:      import.meta.env.VITE_STRIPE_PRICE_PRO_MONTHLY,
+  pro_yearly:       import.meta.env.VITE_STRIPE_PRICE_PRO_YEARLY,
+  business_monthly: import.meta.env.VITE_STRIPE_PRICE_BIZ_MONTHLY,
+  business_yearly:  import.meta.env.VITE_STRIPE_PRICE_BIZ_YEARLY,
+}
 
 const plans = [
   {
+    key: 'free',
     name: 'Free',
     desc: 'Try it out and see what it can do.',
     monthly: 0,
@@ -19,6 +28,7 @@ const plans = [
     missing: ['Advanced image enhancement', 'Listing history', 'Priority support'],
   },
   {
+    key: 'pro',
     name: 'Pro',
     desc: 'For regular sellers who want real results.',
     monthly: 9,
@@ -38,6 +48,7 @@ const plans = [
     missing: [],
   },
   {
+    key: 'business',
     name: 'Business',
     desc: 'For resellers and high-volume stores.',
     monthly: 29,
@@ -59,12 +70,68 @@ const plans = [
   },
 ]
 
-export default function PricingPage({ onBack }) {
+export default function PricingPage({ onBack, user, onSignIn, checkoutSuccess }) {
   const [yearly, setYearly] = useState(false)
+  const [loadingPlan, setLoadingPlan] = useState(null)
+  const [error, setError] = useState(null)
+
+  // Clean up ?checkout=success from the URL after showing the banner
+  useEffect(() => {
+    if (checkoutSuccess) {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('checkout')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [checkoutSuccess])
+
+  const handleCTA = async (plan) => {
+    console.log('[Pricing] handleCTA', { planKey: plan.key, user: !!user, yearly })
+
+    if (plan.key === 'free') {
+      onBack()
+      return
+    }
+
+    if (!user) {
+      console.log('[Pricing] no user → showing sign in modal')
+      onSignIn()
+      return
+    }
+
+    const priceKey = `${plan.key}_${yearly ? 'yearly' : 'monthly'}`
+    const priceId = PRICE_IDS[priceKey]
+    console.log('[Pricing] priceKey:', priceKey, 'priceId:', priceId)
+
+    if (!priceId) {
+      setError('Price not configured yet.')
+      return
+    }
+
+    setLoadingPlan(plan.key)
+    setError(null)
+
+    try {
+      const url = await createCheckoutSession(priceId, plan.key)
+      console.log('[Pricing] checkout URL:', url)
+      window.location.href = url
+    } catch (err) {
+      console.error('[Pricing] error:', err.message)
+      setError(err.message)
+      setLoadingPlan(null)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white pt-16">
       <div className="max-w-6xl mx-auto px-6 py-20">
+
+        {/* Success banner */}
+        {checkoutSuccess && (
+          <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-100 rounded-2xl px-5 py-4 mb-10 text-sm text-emerald-800 font-medium">
+            <PartyPopper className="w-5 h-5 text-emerald-500 shrink-0" />
+            You're now on Pro! Your plan is active — go generate some listings.
+          </div>
+        )}
 
         {/* Header */}
         <div className="text-center mb-14">
@@ -103,6 +170,11 @@ export default function PricingPage({ onBack }) {
             </button>
           </div>
         </div>
+
+        {/* Error */}
+        {error && (
+          <p className="text-center text-sm text-red-600 mb-6">{error}</p>
+        )}
 
         {/* Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
@@ -153,7 +225,9 @@ export default function PricingPage({ onBack }) {
 
               {/* CTA */}
               <button
-                className={`w-full py-3 rounded-xl text-sm font-semibold transition-all ${
+                onClick={() => handleCTA(plan)}
+                disabled={loadingPlan === plan.key}
+                className={`w-full py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${
                   plan.ctaStyle === 'solid'
                     ? 'bg-gradient-to-r from-violet-600 to-indigo-500 text-white hover:from-violet-700 hover:to-indigo-600 shadow-lg shadow-violet-500/25'
                     : plan.popular
@@ -161,6 +235,7 @@ export default function PricingPage({ onBack }) {
                     : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
                 }`}
               >
+                {loadingPlan === plan.key && <Loader2 className="w-4 h-4 animate-spin" />}
                 {plan.cta}
               </button>
 

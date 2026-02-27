@@ -38,7 +38,7 @@ export default function AuthModal({ onClose, onSuccess }) {
       const { error: signUpError } = await supabase.auth.signUp({ email, password })
 
       if (signUpError) {
-        setError('Contraseña incorrecta o hubo un problema. Intentá de nuevo.')
+        setError('Wrong password or something went wrong. Please try again.')
       } else {
         // Account created successfully
         onSuccess()
@@ -75,9 +75,9 @@ return (
           <img src={logo} alt="SmartListing" className="h-8 w-auto" />
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-900 mb-1">Continuá para generar</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-1">Sign in to continue</h2>
         <p className="text-sm text-gray-500 mb-7">
-          Si no tenés cuenta te la creamos automáticamente.
+          No account? We'll create one for you automatically.
         </p>
 
         {/* Error */}
@@ -95,9 +95,9 @@ return (
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-400 cursor-not-allowed select-none"
           >
             <GoogleIcon />
-            Continuar con Google
+            Continue with Google
             <span className="ml-auto text-[10px] font-bold bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">
-              Pronto
+              Soon
             </span>
           </button>
         </div>
@@ -105,7 +105,7 @@ return (
         {/* Divider */}
         <div className="flex items-center gap-3 my-5">
           <div className="flex-1 h-px bg-gray-100" />
-          <span className="text-xs text-gray-400 font-medium">o con tu correo</span>
+          <span className="text-xs text-gray-400 font-medium">or with your email</span>
           <div className="flex-1 h-px bg-gray-100" />
         </div>
 
@@ -117,7 +117,7 @@ return (
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="tu@correo.com"
+              placeholder="you@email.com"
               required
               className="w-full pl-10 pr-4 py-3 text-sm border border-gray-200 rounded-xl outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all"
             />
@@ -128,7 +128,7 @@ return (
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Contraseña"
+              placeholder="Password"
               required
               minLength={6}
               className="w-full pl-10 pr-4 py-3 text-sm border border-gray-200 rounded-xl outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all"
@@ -140,15 +140,15 @@ return (
             className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-500 text-white text-sm font-semibold hover:from-violet-700 hover:to-indigo-600 transition-all shadow-md shadow-violet-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            Continuar
+            Continue
           </button>
         </form>
 
         <p className="text-xs text-gray-400 text-center mt-5">
-          Al continuar aceptás los{' '}
-          <span className="underline cursor-pointer hover:text-gray-600">términos de uso</span>
-          {' '}y la{' '}
-          <span className="underline cursor-pointer hover:text-gray-600">política de privacidad</span>.
+          By continuing you agree to our{' '}
+          <span className="underline cursor-pointer hover:text-gray-600">terms of service</span>
+          {' '}and{' '}
+          <span className="underline cursor-pointer hover:text-gray-600">privacy policy</span>.
         </p>
       </div>
     </div>

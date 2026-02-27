@@ -6,6 +6,7 @@ import QuestionsScreen from './components/QuestionsScreen'
 import ResultScreen from './components/ResultScreen'
 import PricingPage from './components/PricingPage'
 import HistoryPage from './components/HistoryPage'
+import AccountPage from './components/AccountPage'
 import AuthModal from './components/AuthModal'
 import { useAuth } from './hooks/useAuth'
 import { getUsage, incrementUsage } from './lib/usage'
@@ -15,7 +16,15 @@ import { FREE_TIER_LIMIT } from './config'
 export default function App() {
   const { user, loading: authLoading, signOut } = useAuth()
 
-  const [screen, setScreen] = useState('upload')
+  // Handle Stripe redirect back to the app
+  const params = new URLSearchParams(window.location.search)
+  const checkoutResult = params.get('checkout') // 'success' | 'cancel'
+
+  const [screen, setScreen] = useState(() => {
+    if (params.get('checkout') === 'success') return 'pricing'
+    if (params.get('screen') === 'account') return 'account'
+    return 'upload'
+  })
   const [images, setImages] = useState([])
   const [details, setDetails] = useState('')
   const [productName, setProductName] = useState('')
@@ -107,6 +116,7 @@ export default function App() {
 
   const handlePricing = () => setScreen('pricing')
   const handleHistory = () => setScreen('history')
+  const handleAccount = () => setScreen('account')
 
   const handleReset = () => {
     setImages([])
@@ -129,6 +139,7 @@ export default function App() {
         onReset={handleReset}
         onPricing={handlePricing}
         onHistory={handleHistory}
+        onAccount={handleAccount}
         onSignOut={signOut}
         onSignIn={() => setShowAuth(true)}
       />
@@ -178,11 +189,24 @@ export default function App() {
       )}
 
       {screen === 'pricing' && (
-        <PricingPage onBack={handleReset} />
+        <PricingPage
+          onBack={handleReset}
+          user={user}
+          onSignIn={() => setShowAuth(true)}
+          checkoutSuccess={checkoutResult === 'success'}
+        />
       )}
 
       {screen === 'history' && (
         <HistoryPage />
+      )}
+
+      {screen === 'account' && (
+        <AccountPage
+          user={user}
+          onSignOut={signOut}
+          onPricing={handlePricing}
+        />
       )}
 
       {/* Auth modal — rendered on top of any screen */}
