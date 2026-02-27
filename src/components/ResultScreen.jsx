@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Copy, Check, Sparkles, ChevronLeft, ChevronRight, Zap } from 'lucide-react'
+import { Copy, Check, Sparkles, ChevronLeft, ChevronRight, Zap, Pencil } from 'lucide-react'
 
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false)
@@ -19,11 +19,38 @@ function CopyButton({ text }) {
   )
 }
 
+function EditButton({ onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-violet-500 transition-colors shrink-0"
+      title="Edit"
+    >
+      <Pencil className="w-3.5 h-3.5" />
+    </button>
+  )
+}
+
+function SaveButton({ onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-7 h-7 rounded-lg bg-violet-50 hover:bg-violet-100 flex items-center justify-center text-violet-500 transition-colors shrink-0"
+      title="Save"
+    >
+      <Check className="w-3.5 h-3.5" />
+    </button>
+  )
+}
+
 export default function ResultScreen({ images, result: initialResult, onReset, onRegenerate }) {
   const [result, setResult] = useState(initialResult)
   const [activeImage, setActiveImage] = useState(0)
+  const [editing, setEditing] = useState({ title: false, description: false, price: false, category: false })
 
   const update = (field, value) => setResult((prev) => ({ ...prev, [field]: value }))
+  const startEdit = (field) => setEditing((prev) => ({ ...prev, [field]: true }))
+  const stopEdit = (field) => setEditing((prev) => ({ ...prev, [field]: false }))
 
   const prevImage = () => setActiveImage((i) => (i - 1 + images.length) % images.length)
   const nextImage = () => setActiveImage((i) => (i + 1) % images.length)
@@ -107,27 +134,48 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Title</label>
-                <CopyButton text={result.title} />
+                <div className="flex items-center gap-1">
+                  <CopyButton text={result.title} />
+                  {editing.title
+                    ? <SaveButton onClick={() => stopEdit('title')} />
+                    : <EditButton onClick={() => startEdit('title')} />}
+                </div>
               </div>
-              <input
-                value={result.title}
-                onChange={(e) => update('title', e.target.value)}
-                className="w-full text-xl font-bold text-gray-900 border-0 border-b-2 border-transparent hover:border-gray-200 focus:border-violet-400 outline-none pb-1.5 bg-transparent transition-colors"
-              />
+              {editing.title ? (
+                <input
+                  autoFocus
+                  value={result.title}
+                  onChange={(e) => update('title', e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && stopEdit('title')}
+                  className="w-full text-xl font-bold text-gray-900 border border-gray-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all bg-white"
+                />
+              ) : (
+                <p className="text-xl font-bold text-gray-900 leading-snug">{result.title}</p>
+              )}
             </div>
 
             {/* Description */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Description</label>
-                <CopyButton text={result.description} />
+                <div className="flex items-center gap-1">
+                  <CopyButton text={result.description} />
+                  {editing.description
+                    ? <SaveButton onClick={() => stopEdit('description')} />
+                    : <EditButton onClick={() => startEdit('description')} />}
+                </div>
               </div>
-              <textarea
-                value={result.description}
-                onChange={(e) => update('description', e.target.value)}
-                rows={6}
-                className="w-full text-sm text-gray-700 leading-relaxed border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all resize-none bg-white"
-              />
+              {editing.description ? (
+                <textarea
+                  autoFocus
+                  value={result.description}
+                  onChange={(e) => update('description', e.target.value)}
+                  rows={6}
+                  className="w-full text-sm text-gray-700 leading-relaxed border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all resize-none bg-white"
+                />
+              ) : (
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{result.description}</p>
+              )}
             </div>
 
             {/* Price + Category */}
@@ -135,24 +183,46 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Price</label>
-                  <CopyButton text={result.price} />
+                  <div className="flex items-center gap-1">
+                    <CopyButton text={result.price} />
+                    {editing.price
+                      ? <SaveButton onClick={() => stopEdit('price')} />
+                      : <EditButton onClick={() => startEdit('price')} />}
+                  </div>
                 </div>
-                <input
-                  value={result.price}
-                  onChange={(e) => update('price', e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm font-bold text-gray-900 border border-gray-200 rounded-xl outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all"
-                />
+                {editing.price ? (
+                  <input
+                    autoFocus
+                    value={result.price}
+                    onChange={(e) => update('price', e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && stopEdit('price')}
+                    className="w-full px-3.5 py-2.5 text-sm font-bold text-gray-900 border border-gray-200 rounded-xl outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all bg-white"
+                  />
+                ) : (
+                  <p className="text-sm font-bold text-gray-900">{result.price}</p>
+                )}
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Category</label>
-                  <CopyButton text={result.category} />
+                  <div className="flex items-center gap-1">
+                    <CopyButton text={result.category} />
+                    {editing.category
+                      ? <SaveButton onClick={() => stopEdit('category')} />
+                      : <EditButton onClick={() => startEdit('category')} />}
+                  </div>
                 </div>
-                <input
-                  value={result.category}
-                  onChange={(e) => update('category', e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm text-gray-600 border border-gray-200 rounded-xl outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all"
-                />
+                {editing.category ? (
+                  <input
+                    autoFocus
+                    value={result.category}
+                    onChange={(e) => update('category', e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && stopEdit('category')}
+                    className="w-full px-3.5 py-2.5 text-sm text-gray-600 border border-gray-200 rounded-xl outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all bg-white"
+                  />
+                ) : (
+                  <p className="text-sm text-gray-600">{result.category}</p>
+                )}
               </div>
             </div>
 
