@@ -58,8 +58,10 @@ Deno.serve(async (req) => {
         .single()
 
       if (sub) {
+        // Use 'canceling' if scheduled to cancel at period end
+        const effectiveStatus = subscription.cancel_at_period_end ? 'canceling' : subscription.status
         await supabase.from('subscriptions').update({
-          status: subscription.status,
+          status: effectiveStatus,
           current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
           updated_at: new Date().toISOString(),
         }).eq('user_id', sub.user_id)

@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react'
-import { Mail, LogOut, Loader2, Check, Pencil, X, Zap } from 'lucide-react'
+import { Mail, LogOut, Loader2, Check, Pencil, X, Zap, CreditCard, RefreshCw, AlertTriangle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getUsage } from '../lib/usage'
-import { createPortalSession } from '../lib/stripe'
+import { createPortalSession, cancelSubscription } from '../lib/stripe'
 
 const PLAN_META = {
   free:     { label: 'Free',     className: 'bg-gray-100 text-gray-600' },
   pro:      { label: 'Pro',      className: 'bg-violet-100 text-violet-700' },
   business: { label: 'Business', className: 'bg-amber-100 text-amber-700' },
+}
+
+function formatDate(iso) {
+  if (!iso) return 'end of billing period'
+  return new Date(iso).toLocaleDateString('en', { month: 'long', day: 'numeric', year: 'numeric' })
 }
 
 export default function AccountPage({ user, onSignOut, onPricing }) {
@@ -18,7 +23,9 @@ export default function AccountPage({ user, onSignOut, onPricing }) {
   const [savingName, setSavingName]   = useState(false)
 
   const [usage, setUsage]             = useState(null)
-  const [loadingPortal, setLoadingPortal] = useState(false)
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [cancelling, setCancelling]   = useState(false)
+  const [portalLoading, setPortalLoading] = useState(false)
   const [error, setError]             = useState(null)
 
   useEffect(() => {
@@ -34,24 +41,37 @@ export default function AccountPage({ user, onSignOut, onPricing }) {
     setSavingName(false)
   }
 
-  const handleManage = async () => {
-    if (!usage || usage.plan === 'free') {
-      onPricing()
-      return
-    }
-    setLoadingPortal(true)
+  const handleCancelSubscription = async () => {
+    setCancelling(true)
     setError(null)
     try {
-      const url = await createPortalSession()
+      await cancelSubscription()
+      setShowCancelModal(false)
+      // Reload usage so the 'canceling' status is picked up from DB
+      const updated = await getUsage()
+      setUsage(updated)
+    } catch (err) {
+      setError(err.message)
+    }
+    setCancelling(false)
+  }
+
+  const handleUpdatePayment = async () => {
+    setPortalLoading(true)
+    setError(null)
+    try {
+      const url = await createPortalSession('payment_method_update')
       window.location.href = url
     } catch (err) {
       setError(err.message)
-      setLoadingPortal(false)
+      setPortalLoading(false)
     }
   }
 
-  const plan     = usage?.plan || 'free'
-  const planMeta = PLAN_META[plan] || PLAN_META.free
+  const plan        = usage?.plan || 'free'
+  const planMeta    = PLAN_META[plan] || PLAN_META.free
+  const isPaid      = plan !== 'free'
+  const isCancelling = usage?.cancelling ?? false
   const initials = (displayName || user?.email || '?')[0].toUpperCase()
 
   return (
@@ -92,9 +112,7 @@ export default function AccountPage({ user, onSignOut, onPricing }) {
                   disabled={savingName}
                   className="w-9 h-9 rounded-xl bg-violet-600 text-white flex items-center justify-center hover:bg-violet-700 transition-colors disabled:opacity-60"
                 >
-                  {savingName
-                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <Check className="w-4 h-4" />}
+                  {savingName ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 </button>
                 <button
                   onClick={() => { setEditing(false); setNameInput(displayName) }}
@@ -131,7 +149,7 @@ export default function AccountPage({ user, onSignOut, onPricing }) {
 
           {/* Plan */}
           <div className="px-6 py-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">
               Plan
             </p>
 
@@ -142,16 +160,22 @@ export default function AccountPage({ user, onSignOut, onPricing }) {
               </div>
             ) : (
               <div className="space-y-4">
+
+                {/* Plan badge */}
                 <div className="flex items-center gap-2">
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${planMeta.className}`}>
                     {planMeta.label}
                   </span>
-                  {plan !== 'free' && (
+                  {isCancelling ? (
+                    <span className="text-xs text-orange-500 font-medium">
+                      Cancels {formatDate(usage?.currentPeriodEnd)}
+                    </span>
+                  ) : isPaid ? (
                     <span className="text-xs text-gray-400">Active</span>
-                  )}
+                  ) : null}
                 </div>
 
-                {/* Usage bar (free & pro) */}
+                {/* Usage bar */}
                 {usage.limit !== Infinity && (
                   <div>
                     <div className="flex justify-between text-xs text-gray-400 mb-1.5">
@@ -174,16 +198,53 @@ export default function AccountPage({ user, onSignOut, onPricing }) {
                   </p>
                 )}
 
+                {/* Cancelled banner */}
+                {isCancelling && (
+                  <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 text-xs text-orange-700 leading-relaxed">
+                    Your <strong>{planMeta.label}</strong> plan remains active until{' '}
+                    <strong>{formatDate(usage?.currentPeriodEnd)}</strong>. After that you'll move to Free.
+                  </div>
+                )}
+
                 {error && <p className="text-xs text-red-500">{error}</p>}
 
-                <button
-                  onClick={handleManage}
-                  disabled={loadingPortal}
-                  className="w-full py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-                >
-                  {loadingPortal && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {plan === 'free' ? 'Upgrade plan' : 'Manage subscription'}
-                </button>
+                {/* Action buttons */}
+                {!isCancelling && (
+                  <div className="space-y-2 pt-1">
+                    {/* Change plan — always visible */}
+                    <button
+                      onClick={onPricing}
+                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-500 text-white text-sm font-semibold hover:from-violet-700 hover:to-indigo-600 transition-all flex items-center justify-center gap-2"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      {isPaid ? 'Change plan' : 'Upgrade plan'}
+                    </button>
+
+                    {/* Paid-only actions */}
+                    {isPaid && (
+                      <>
+                        <button
+                          onClick={handleUpdatePayment}
+                          disabled={portalLoading}
+                          className="w-full py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                        >
+                          {portalLoading
+                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                            : <CreditCard className="w-4 h-4 text-gray-400" />
+                          }
+                          Update payment method
+                        </button>
+
+                        <button
+                          onClick={() => setShowCancelModal(true)}
+                          className="w-full py-2.5 rounded-xl border border-red-100 text-sm font-semibold text-red-400 hover:bg-red-50 hover:border-red-200 transition-colors"
+                        >
+                          Cancel subscription
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -193,13 +254,52 @@ export default function AccountPage({ user, onSignOut, onPricing }) {
         {/* Sign out */}
         <button
           onClick={onSignOut}
-          className="w-full mt-4 py-3 rounded-2xl border border-gray-200 text-sm font-semibold text-red-500 hover:bg-red-50 hover:border-red-100 transition-colors flex items-center justify-center gap-2"
+          className="w-full mt-4 py-3 rounded-2xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
         >
           <LogOut className="w-4 h-4" />
           Sign out
         </button>
 
       </div>
+
+      {/* Cancel confirmation modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowCancelModal(false)} />
+          <div className="relative z-10 bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8">
+
+            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mb-5">
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+            </div>
+
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Cancel subscription?</h2>
+            <p className="text-sm text-gray-500 leading-relaxed">
+              Your <strong className="text-gray-700">{planMeta.label}</strong> benefits remain active
+              until <strong className="text-gray-700">{formatDate(usage?.currentPeriodEnd)}</strong>.
+              After that you'll move to the Free plan (5 listings/month).
+            </p>
+
+            {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowCancelModal(false)}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Keep plan
+              </button>
+              <button
+                onClick={handleCancelSubscription}
+                disabled={cancelling}
+                className="flex-1 py-3 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {cancelling && <Loader2 className="w-4 h-4 animate-spin" />}
+                Yes, cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

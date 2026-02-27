@@ -14,7 +14,8 @@ import { saveListing } from './lib/listings'
 import { FREE_TIER_LIMIT } from './config'
 
 export default function App() {
-  const { user, loading: authLoading, signOut } = useAuth()
+  const { user, loading: authLoading, signOut: authSignOut } = useAuth()
+  const signOut = () => { authSignOut(); handleReset() }
 
   // Handle Stripe redirect back to the app
   const params = new URLSearchParams(window.location.search)

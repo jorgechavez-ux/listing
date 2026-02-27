@@ -27,24 +27,27 @@ Deno.serve(async (req) => {
 
     const { data: sub } = await supabase
       .from('subscriptions')
-      .select('stripe_customer_id')
+      .select('stripe_subscription_id, current_period_end')
       .eq('user_id', user.id)
       .single()
 
-    if (!sub?.stripe_customer_id) throw new Error('No subscription found')
+    if (!sub?.stripe_subscription_id) throw new Error('No active subscription found')
 
-    const { flow } = await req.json().catch(() => ({}))
-    const origin = req.headers.get('origin') || 'http://localhost:5173'
-
-    const session = await stripe.billingPortal.sessions.create({
-      customer: sub.stripe_customer_id,
-      return_url: `${origin}?screen=account`,
-      ...(flow === 'payment_method_update' && {
-        flow_data: { type: 'payment_method_update' },
-      }),
+    // Schedule cancellation at period end — user keeps benefits until then
+    await stripe.subscriptions.update(sub.stripe_subscription_id, {
+      cancel_at_period_end: true,
     })
 
-    return new Response(JSON.stringify({ url: session.url }), {
+    // Update DB immediately so UI reflects it without waiting for webhook
+    await supabase.from('subscriptions').update({
+      status: 'canceling',
+      updated_at: new Date().toISOString(),
+    }).eq('user_id', user.id)
+
+    return new Response(JSON.stringify({
+      success: true,
+      currentPeriodEnd: sub.current_period_end,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {

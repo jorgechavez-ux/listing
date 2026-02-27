@@ -4,32 +4,34 @@ import { PLAN_LIMITS } from '../config'
 const currentMonth = () => new Date().toISOString().slice(0, 7)
 
 /**
- * Returns { count, limit, canGenerate } for the current user.
+ * Returns { count, limit, canGenerate, plan, currentPeriodEnd } for the current user.
  * Respects the user's active subscription plan.
  */
 export async function getUsage() {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { count: 0, limit: PLAN_LIMITS.free, canGenerate: false }
+  if (!user) return { count: 0, limit: PLAN_LIMITS.free, canGenerate: false, plan: 'free', currentPeriodEnd: null }
 
   // Check active subscription
   const { data: sub } = await supabase
     .from('subscriptions')
-    .select('plan, status')
+    .select('plan, status, current_period_end')
     .eq('user_id', user.id)
     .single()
 
-  const active = sub?.status === 'active' || sub?.status === 'trialing'
+  const active = sub?.status === 'active' || sub?.status === 'trialing' || sub?.status === 'canceling'
   const plan = active ? (sub?.plan || 'free') : 'free'
   const limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free
+  const currentPeriodEnd = sub?.current_period_end ?? null
+  const cancelling = sub?.status === 'canceling'
 
   // Business = unlimited
-  if (limit === Infinity) return { count: 0, limit: Infinity, canGenerate: true }
+  if (limit === Infinity) return { count: 0, limit: Infinity, canGenerate: true, plan, currentPeriodEnd, cancelling }
 
   const meta = user.user_metadata || {}
   const month = currentMonth()
   const count = meta.gen_month === month ? (meta.gen_count ?? 0) : 0
 
-  return { count, limit, canGenerate: count < limit, plan }
+  return { count, limit, canGenerate: count < limit, plan, currentPeriodEnd, cancelling }
 }
 
 /**

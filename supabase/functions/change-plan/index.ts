@@ -25,26 +25,38 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user) throw new Error('Unauthorized')
 
+    const { priceId, plan } = await req.json()
+    if (!priceId || !plan) throw new Error('Missing priceId or plan')
+
     const { data: sub } = await supabase
       .from('subscriptions')
-      .select('stripe_customer_id')
+      .select('stripe_subscription_id')
       .eq('user_id', user.id)
       .single()
 
-    if (!sub?.stripe_customer_id) throw new Error('No subscription found')
+    if (!sub?.stripe_subscription_id) throw new Error('No active subscription found')
 
-    const { flow } = await req.json().catch(() => ({}))
-    const origin = req.headers.get('origin') || 'http://localhost:5173'
+    // Get subscription from Stripe to find the item ID
+    const subscription = await stripe.subscriptions.retrieve(sub.stripe_subscription_id)
+    const itemId = subscription.items.data[0].id
 
-    const session = await stripe.billingPortal.sessions.create({
-      customer: sub.stripe_customer_id,
-      return_url: `${origin}?screen=account`,
-      ...(flow === 'payment_method_update' && {
-        flow_data: { type: 'payment_method_update' },
-      }),
+    // Update to new price — Stripe prorates automatically:
+    //   Upgrade → charges the difference immediately
+    //   Downgrade → credits the unused amount to next invoice
+    const updated = await stripe.subscriptions.update(sub.stripe_subscription_id, {
+      items: [{ id: itemId, price: priceId }],
+      proration_behavior: 'create_prorations',
     })
 
-    return new Response(JSON.stringify({ url: session.url }), {
+    // Reflect new plan in DB immediately
+    await supabase.from('subscriptions').update({
+      plan,
+      status: updated.status,
+      current_period_end: new Date(updated.current_period_end * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('user_id', user.id)
+
+    return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {

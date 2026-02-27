@@ -10,11 +10,30 @@ export async function createCheckoutSession(priceId, plan) {
   return data.url
 }
 
-export async function createPortalSession() {
-  const { data, error } = await supabase.functions.invoke('create-portal-session', {})
+export async function createPortalSession(flow = null) {
+  const { data, error } = await supabase.functions.invoke('create-portal-session', {
+    body: { flow },
+  })
+
   if (error) throw new Error(error.message)
   if (data?.error) throw new Error(data.error)
   return data.url
+}
+
+export async function cancelSubscription() {
+  const { data, error } = await supabase.functions.invoke('cancel-subscription', {})
+  if (error) throw new Error(error.message)
+  if (data?.error) throw new Error(data.error)
+  return data // { success, currentPeriodEnd }
+}
+
+export async function changePlan(priceId, plan) {
+  const { data, error } = await supabase.functions.invoke('change-plan', {
+    body: { priceId, plan },
+  })
+  if (error) throw new Error(error.message)
+  if (data?.error) throw new Error(data.error)
+  return data
 }
 
 export async function getUserPlan() {
