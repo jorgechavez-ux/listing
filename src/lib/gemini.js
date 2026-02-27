@@ -102,9 +102,21 @@ Reply ONLY with valid JSON:
 }
 
 // Step 1: analyze the photo and decide if questions are needed
-export async function analyzeForQuestions(imageFile, extraDetails = '') {
-  // -- Phase A: quick visual ID --
-  const identified = await identifyProduct(imageFile)
+// forcedProductName: when the user manually corrected the product name, skip visual ID
+export async function analyzeForQuestions(imageFile, extraDetails = '', forcedProductName = null) {
+  // -- Phase A: product identification --
+  let identified
+
+  if (forcedProductName) {
+    // User already told us what it is — trust them, go straight to web search
+    identified = {
+      productName: forcedProductName,
+      searchQuery: `${forcedProductName} used resale price marketplace specs`,
+      shouldSearch: true,
+    }
+  } else {
+    identified = await identifyProduct(imageFile)
+  }
 
   // -- Phase B: web search (only for branded/identifiable products) --
   let webContext = ''
@@ -142,7 +154,7 @@ BAD examples (never ask these):
 Reply ONLY with valid JSON:
 {
   "needsQuestions": true or false,
-  "productName": "${identified?.productName || 'detected product name'}",
+  "productName": "${forcedProductName || identified?.productName || 'detected product name'}",
   "questions": [
     { "id": "unique_id", "label": "Short question for the user", "placeholder": "e.g. ..." }
   ]
@@ -152,6 +164,11 @@ Maximum 3 questions. If there is nothing genuinely useful to ask, return needsQu
 
   const result = await callGroq(imageFile, prompt)
 
+  // If the user manually corrected the name, always trust them over the AI's vision
+  if (forcedProductName) {
+    result.productName = forcedProductName
+  }
+
   // Attach web context so generateListing can use it too
   result._webContext = webContext
 
@@ -159,9 +176,12 @@ Maximum 3 questions. If there is nothing genuinely useful to ask, return needsQu
 }
 
 // Step 2: generate the listing with all available info
-export async function generateListing(imageFiles, extraDetails, answers = {}, productContext = '') {
+export async function generateListing(imageFiles, extraDetails, answers = {}, productContext = '', productName = '') {
   const extraContext = extraDetails.trim()
     ? `\nAdditional details from the seller: "${extraDetails.trim()}"` : ''
+
+  const nameContext = productName.trim()
+    ? `\nThe product being sold is: "${productName.trim()}". Use this exact name — do not invent a different product.` : ''
 
   const answersContext = Object.entries(answers)
     .filter(([, v]) => v.trim())
@@ -174,7 +194,7 @@ export async function generateListing(imageFiles, extraDetails, answers = {}, pr
   const webCtx = productContext
     ? `\nVerified product info from web:\n${productContext}` : ''
 
-  const prompt = `You are a Marketplace sales expert (Facebook Marketplace, OfferUp, Craigslist, etc.). Analyze the photo and create an attractive listing to sell the product.${extraContext}${specsContext}${webCtx}
+  const prompt = `You are a Marketplace sales expert (Facebook Marketplace, OfferUp, Craigslist, etc.). Analyze the photo and create an attractive listing to sell the product.${nameContext}${extraContext}${specsContext}${webCtx}
 
 Reply ONLY with valid JSON:
 {

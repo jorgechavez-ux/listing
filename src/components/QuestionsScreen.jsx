@@ -1,15 +1,22 @@
 import { useState } from 'react'
-import { Pencil, Check, ChevronRight, SkipForward, Sparkles } from 'lucide-react'
+import { Pencil, Check, ChevronRight, SkipForward, Sparkles, RefreshCw } from 'lucide-react'
 import logo from '../assets/logo-sl.png'
 
-export default function QuestionsScreen({ images, productName, questions, onProductNameChange, onGenerate }) {
+export default function QuestionsScreen({ images, productName, questions, onReanalyze, onGenerate }) {
   const [answers, setAnswers] = useState({})
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(productName)
 
   const handleSaveName = () => {
-    onProductNameChange(nameInput.trim() || productName)
-    setEditingName(false)
+    const trimmed = nameInput.trim()
+    if (!trimmed) { setEditingName(false); return }
+
+    if (trimmed !== productName) {
+      // Name changed — re-run analysis with the correct product name
+      onReanalyze(trimmed)
+    } else {
+      setEditingName(false)
+    }
   }
 
   const bgImage = images[0]?.url
@@ -32,20 +39,28 @@ export default function QuestionsScreen({ images, productName, questions, onProd
                 I recognized
               </p>
               {editingName ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    autoFocus
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName() }}
-                    className="flex-1 text-base font-bold text-gray-900 border-b-2 border-violet-400 outline-none bg-transparent pb-0.5"
-                  />
-                  <button
-                    onClick={handleSaveName}
-                    className="w-7 h-7 rounded-lg bg-violet-100 text-violet-600 hover:bg-violet-200 flex items-center justify-center shrink-0 transition-colors"
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <input
+                      autoFocus
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName() }}
+                      className="flex-1 text-base font-bold text-gray-900 border-b-2 border-violet-400 outline-none bg-transparent pb-0.5"
+                    />
+                    <button
+                      onClick={handleSaveName}
+                      className="w-7 h-7 rounded-lg bg-violet-600 text-white hover:bg-violet-700 flex items-center justify-center shrink-0 transition-colors"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {nameInput.trim() && nameInput.trim() !== productName && (
+                    <p className="text-[11px] text-violet-500 flex items-center gap-1">
+                      <RefreshCw className="w-3 h-3" />
+                      Questions will refresh with the correct product
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center gap-2">

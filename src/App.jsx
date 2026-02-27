@@ -30,6 +30,7 @@ export default function App() {
   const [details, setDetails] = useState('')
   const [productName, setProductName] = useState('')
   const [productContext, setProductContext] = useState('')
+  const [forcedProductName, setForcedProductName] = useState(null)
   const [questions, setQuestions] = useState([])
   const [answers, setAnswers] = useState({})
   const [result, setResult] = useState(null)
@@ -79,6 +80,7 @@ export default function App() {
     }
     setProductName(analysis.productName || '')
     setProductContext(analysis._webContext || '')
+    setForcedProductName(null) // clear after analysis done
     if (analysis.needsQuestions && analysis.questions?.length > 0) {
       setQuestions(analysis.questions)
       setScreen('questions')
@@ -87,6 +89,12 @@ export default function App() {
       setAnswers({})
       setScreen('generating')
     }
+  }
+
+  const handleReanalyze = (correctedName) => {
+    setProductName(correctedName)
+    setForcedProductName(correctedName)
+    setScreen('analyzing')
   }
 
   const handleGenerate = (ans) => {
@@ -157,6 +165,7 @@ export default function App() {
           mode="analyze"
           images={images}
           details={details}
+          forcedProductName={forcedProductName}
           onDone={handleAnalysisDone}
         />
       )}
@@ -166,7 +175,7 @@ export default function App() {
           images={images}
           productName={productName}
           questions={questions}
-          onProductNameChange={setProductName}
+          onReanalyze={handleReanalyze}
           onGenerate={handleGenerate}
           onBack={handleReset}
         />

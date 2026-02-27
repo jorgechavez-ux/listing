@@ -17,7 +17,7 @@ const GENERATE_STATES = [
   { text: 'Writing your listing' },
 ]
 
-export default function AnalyzingScreen({ mode, images, details, answers, productName, productContext, onDone }) {
+export default function AnalyzingScreen({ mode, images, details, answers, productName, productContext, forcedProductName, onDone }) {
   const [step, setStep] = useState(0)
   const [error, setError] = useState(null)
 
@@ -32,7 +32,7 @@ export default function AnalyzingScreen({ mode, images, details, answers, produc
           setStep(0) // Uploading images
 
           // Start API in parallel with the UX steps
-          const apiPromise = analyzeForQuestions(images[0].file, details)
+          const apiPromise = analyzeForQuestions(images[0].file, details, forcedProductName || null)
 
           await sleep(800)
           if (cancelled) return
@@ -53,7 +53,7 @@ export default function AnalyzingScreen({ mode, images, details, answers, produc
         } else {
           setStep(0)
           const files = images.map((img) => img.file)
-          const apiPromise = generateListing(files, details, answers || {}, productContext || '')
+          const apiPromise = generateListing(files, details, answers || {}, productContext || '', productName || '')
 
           await sleep(800)
           if (cancelled) return
