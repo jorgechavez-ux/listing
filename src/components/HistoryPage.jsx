@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { getUserListings, deleteListing } from '../lib/listings'
-import { Sparkles, Trash2, Copy, Check, ChevronDown, ChevronUp, Clock, Loader2 } from 'lucide-react'
+import { Sparkles, Trash2, Copy, Check, ChevronDown, ChevronUp, Clock, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
+
+const PAGE_SIZE = 10
 
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -120,6 +122,7 @@ export default function HistoryPage() {
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     getUserListings().then(({ data, error }) => {
@@ -131,8 +134,19 @@ export default function HistoryPage() {
 
   const handleDelete = async (id) => {
     const { error } = await deleteListing(id)
-    if (!error) setListings((prev) => prev.filter((l) => l.id !== id))
+    if (!error) {
+      setListings((prev) => {
+        const next = prev.filter((l) => l.id !== id)
+        // If deleting the last item on a page > 1, go back one page
+        const totalPages = Math.max(1, Math.ceil(next.length / PAGE_SIZE))
+        if (page > totalPages) setPage(totalPages)
+        return next
+      })
+    }
   }
+
+  const totalPages = Math.max(1, Math.ceil(listings.length / PAGE_SIZE))
+  const paginated = listings.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
@@ -182,14 +196,49 @@ export default function HistoryPage() {
             </div>
 
             <div className="space-y-2">
-              {listings.map((listing) => (
+              {paginated.map((listing) => (
                 <ListingRow key={listing.id} listing={listing} onDelete={handleDelete} />
               ))}
             </div>
 
-            <p className="text-xs text-gray-400 text-center mt-6">
-              {listings.length} listing{listings.length !== 1 ? 's' : ''} total
-            </p>
+            {/* Pagination */}
+            <div className="flex items-center justify-between mt-6">
+              <p className="text-xs text-gray-400">
+                {listings.length} listing{listings.length !== 1 ? 's' : ''} ·{' '}
+                page {page} of {totalPages}
+              </p>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage((p) => p - 1)}
+                    disabled={page === 1}
+                    className="w-8 h-8 rounded-lg border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${
+                        p === page
+                          ? 'bg-violet-600 text-white border border-violet-600'
+                          : 'border border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setPage((p) => p + 1)}
+                    disabled={page === totalPages}
+                    className="w-8 h-8 rounded-lg border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>
