@@ -80,7 +80,18 @@ export default function App() {
     if (pendingStart) {
       const { imgs, det } = pendingStart
       setPendingStart(null)
-      await handleStart(imgs, det)
+      // Don't call handleStart — user state hasn't updated yet (race condition).
+      // Go directly to the flow, getUsage() uses supabase.auth.getUser() internally.
+      const { canGenerate } = await getUsage()
+      if (!canGenerate) {
+        showToast(`You've reached the ${FREE_TIER_LIMIT} free listings limit for this month.`)
+        setScreen('pricing')
+        return
+      }
+      setImages(imgs)
+      setDetails(det)
+      setUploadError(null)
+      setScreen('analyzing')
     }
   }
 
