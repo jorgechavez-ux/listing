@@ -340,9 +340,9 @@ export default function ResultScreen({ images: initialImages, result: initialRes
           <div className="mt-10">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="w-4 h-4 text-violet-500" />
-              <h2 className="text-sm font-semibold text-gray-700">Productos similares en el mercado</h2>
+              <h2 className="text-sm font-semibold text-gray-700">Similar listings on the market</h2>
               {loadingSimilar && (
-                <span className="text-xs text-gray-400 animate-pulse">Buscando...</span>
+                <span className="text-xs text-gray-400 animate-pulse">Searching...</span>
               )}
             </div>
 
@@ -376,7 +376,7 @@ export default function ResultScreen({ images: initialImages, result: initialRes
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-700 mt-1 self-start"
                       >
-                        Ver listing
+                        View listing
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
