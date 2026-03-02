@@ -175,6 +175,82 @@ Maximum 3 questions. If there is nothing genuinely useful to ask, return needsQu
   return result
 }
 
+// Parse the `reasoning` field that compound-beta-mini returns with its web search results
+function parseReasoningResults(reasoning, fallbackPrice) {
+  const results = []
+  // Each result block starts with "Title:"
+  const blocks = reasoning.split(/\n(?=Title:)/)
+
+  for (const block of blocks) {
+    const title = block.match(/Title:\s*(.+)/)?.[1]?.trim()
+    const url   = block.match(/URL:\s*(.+)/)?.[1]?.trim()
+    const contentMatch = block.match(/Content:\s*([\s\S]+?)(?:\nScore:|$)/)
+    const content = contentMatch?.[1]?.replace(/\n/g, ' ').trim() || ''
+
+    if (!title || !url) continue
+
+    // Try to pull a price from the content snippet; fall back to the product's own price
+    const priceMatch = content.match(/\$[\d,]+\.?\d*/)
+    const source = url.includes('ebay.') ? 'eBay'
+      : url.includes('craigslist.') ? 'Craigslist'
+      : url.includes('facebook.') ? 'Facebook Marketplace'
+      : new URL(url).hostname.replace('www.', '')
+
+    results.push({
+      title: title.replace(/\s*[–-]\s*eBay$/, '').slice(0, 80),
+      price: priceMatch ? priceMatch[0] : fallbackPrice,
+      description: content.slice(0, 160) + (content.length > 160 ? '…' : ''),
+      source,
+      url,
+    })
+
+    if (results.length === 3) break
+  }
+
+  return results
+}
+
+// Search for similar listings on eBay, Craigslist, etc. using compound-beta-mini web search
+export async function searchSimilarListings(productName, price) {
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'compound-beta-mini',
+        messages: [{
+          role: 'user',
+          content: `Search eBay for active listings of "${productName}" around price ${price}. Find 3 results.`,
+        }],
+        temperature: 0.1,
+      }),
+    })
+
+    if (!response.ok) return []
+
+    const data = await response.json()
+    const content   = data.choices?.[0]?.message?.content   || ''
+    const reasoning = data.choices?.[0]?.message?.reasoning || ''
+
+    // Try JSON from content first; if empty/[], fall back to parsing reasoning search results
+    const codeBlock = content.match(/```(?:json)?\s*([\s\S]*?)```/)
+    const jsonText  = codeBlock ? codeBlock[1] : content
+    const s = jsonText.indexOf('['), e = jsonText.lastIndexOf(']')
+    if (s !== -1 && e !== -1) {
+      const parsed = JSON.parse(jsonText.slice(s, e + 1))
+      if (parsed.length > 0) return parsed
+    }
+
+    // compound-beta-mini puts the real search results in `reasoning` — parse those
+    return parseReasoningResults(reasoning, price)
+  } catch {
+    return []
+  }
+}
+
 // Step 2: generate the listing with all available info
 export async function generateListing(imageFiles, extraDetails, answers = {}, productContext = '', productName = '') {
   const extraContext = extraDetails.trim()

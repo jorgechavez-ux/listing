@@ -336,16 +336,15 @@ export default function PricingPage({ onBack, user, onSignIn, checkoutSuccess })
                   disabled={isCurrent || isLoading || !!successMsg}
                   className={`w-full py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2
                     disabled:cursor-not-allowed
-                    ${isCurrent ? 'opacity-50' : ''}
-                    ${!isCurrent && plan.ctaStyle === 'solid'
+                    ${isCurrent
+                      ? plan.popular
+                        ? 'bg-gray-800 border border-gray-600 text-gray-300 opacity-70'
+                        : 'border border-gray-200 text-gray-400 opacity-60'
+                      : plan.ctaStyle === 'solid'
                       ? 'bg-gradient-to-r from-violet-600 to-indigo-500 text-white hover:from-violet-700 hover:to-indigo-600 shadow-lg shadow-violet-500/25'
-                      : !isCurrent && plan.popular
-                      ? 'border border-gray-700 text-gray-300 hover:bg-gray-800'
-                      : !isCurrent
-                      ? 'border border-gray-200 text-gray-700 hover:bg-gray-50'
                       : plan.popular
-                      ? 'border border-gray-700 text-gray-500'
-                      : 'border border-gray-200 text-gray-400'
+                      ? 'border border-gray-700 text-gray-300 hover:bg-gray-800'
+                      : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
                     }`}
                 >
                   {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}

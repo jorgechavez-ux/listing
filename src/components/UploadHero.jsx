@@ -68,7 +68,7 @@ export default function UploadHero({ onStart, error }) {
           className="mb-6 inline-flex items-center gap-2 bg-violet-50 text-violet-700 text-xs font-semibold px-3.5 py-1.5 rounded-full border border-violet-100"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
-          Powered by AI · Free to start
+          Sellers close up to 30% faster · Free to start
         </motion.div>
 
         {/* Headline */}
@@ -76,11 +76,11 @@ export default function UploadHero({ onStart, error }) {
           {...fadeUp(0.08)}
           className="text-5xl sm:text-6xl font-extrabold text-gray-900 tracking-tight leading-tight max-w-3xl"
         >
-          Your{' '}
+          Listings that{' '}
           <span className="bg-gradient-to-r from-violet-600 to-indigo-500 bg-clip-text text-transparent">
-            Marketplace
+            actually sell
           </span>
-          {' '}listing, perfect in seconds
+          {' '}— in seconds
         </motion.h1>
 
         {/* Subtitle */}
@@ -88,8 +88,8 @@ export default function UploadHero({ onStart, error }) {
           {...fadeUp(0.18)}
           className="mt-5 text-lg text-gray-500 max-w-xl leading-relaxed"
         >
-          Upload a photo of what you want to sell. The AI analyzes the product,
-          writes a description that hooks buyers, and enhances your photos automatically.
+          Most buyers scroll past vague listings. Our AI writes titles and descriptions
+          that answer every question before it's asked — so buyers hit "buy" instead of moving on.
         </motion.p>
 
         {/* Social proof */}
@@ -97,7 +97,6 @@ export default function UploadHero({ onStart, error }) {
           {...fadeUp(0.28)}
           className="mt-5 flex items-center gap-3"
         >
-          {/* Product thumbnails */}
           <div className="flex -space-x-2">
             {SAMPLE_PRODUCTS.map((src, i) => (
               <div
@@ -121,7 +120,7 @@ export default function UploadHero({ onStart, error }) {
 
         {/* Upload area */}
         <motion.div
-          {...fadeUp(0.38)}
+          {...fadeUp(0.46)}
           className="mt-12 w-full max-w-2xl space-y-4"
         >
           <AnimatePresence>
@@ -159,8 +158,8 @@ export default function UploadHero({ onStart, error }) {
             {processing && (
               <div className="flex flex-col items-center justify-center gap-3 py-8">
                 <Loader2 className="w-8 h-8 text-violet-500 animate-spin" />
-                <p className="text-sm font-medium text-gray-600">Optimizing images...</p>
-                <p className="text-xs text-gray-400">Cropping to 1:1 and enhancing quality</p>
+                <p className="text-sm font-medium text-gray-600">Enhancing with AI...</p>
+                <p className="text-xs text-gray-400">Nano Banana 2 is reframing and improving your photos</p>
               </div>
             )}
 
@@ -185,7 +184,7 @@ export default function UploadHero({ onStart, error }) {
                     <div key={img.id} className="relative aspect-square rounded-xl overflow-hidden group">
                       <img src={img.url} alt="" className="w-full h-full object-cover" />
                       <div className="absolute bottom-1.5 left-1.5 bg-black/55 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                        ✦ 1:1
+                        {img.enhanced ? '✦ AI' : '✦ 1:1'}
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); removeImage(img.id) }}
@@ -203,7 +202,7 @@ export default function UploadHero({ onStart, error }) {
                   </button>
                 </div>
                 <p className="text-xs text-gray-400 text-center">
-                  Images optimized to 1:1 · 1080×1080px
+                  {images.some((i) => i.enhanced) ? 'AI enhanced · 1:1 · 1200×1200px' : '1:1 · 1200×1200px'}
                 </p>
               </div>
             )}

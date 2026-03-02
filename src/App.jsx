@@ -197,6 +197,7 @@ export default function App() {
         <ResultScreen
           images={images}
           result={result}
+          productName={productName}
           onReset={handleReset}
           onRegenerate={handleRegenerate}
         />

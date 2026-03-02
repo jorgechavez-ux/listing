@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { Copy, Check, Sparkles, ChevronLeft, ChevronRight, Zap, Pencil } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Copy, Check, Sparkles, ChevronLeft, ChevronRight, Zap, Pencil, ExternalLink, TrendingUp, Download } from 'lucide-react'
+import { searchSimilarListings } from '../lib/gemini'
+import JSZip from 'jszip'
 
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false)
@@ -43,10 +45,59 @@ function SaveButton({ onClick }) {
   )
 }
 
-export default function ResultScreen({ images, result: initialResult, onReset, onRegenerate }) {
+export default function ResultScreen({ images, result: initialResult, productName, onReset, onRegenerate }) {
   const [result, setResult] = useState(initialResult)
   const [activeImage, setActiveImage] = useState(0)
   const [editing, setEditing] = useState({ title: false, description: false, price: false, category: false })
+  const [similarListings, setSimilarListings] = useState([])
+  const [loadingSimilar, setLoadingSimilar] = useState(true)
+  const [marketplaceToast, setMarketplaceToast] = useState(false)
+
+  const slugName = (result.title || 'listing').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)
+
+  const downloadImages = async () => {
+    const fetchBlob = (url) => fetch(url).then((r) => r.blob())
+
+    if (images.length === 1) {
+      const blob = await fetchBlob(images[0].url)
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `${slugName}.png`
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } else {
+      const zip = new JSZip()
+      await Promise.all(
+        images.map(async (img, i) => {
+          const blob = await fetchBlob(img.url)
+          zip.file(`${slugName}-${i + 1}.png`, blob)
+        })
+      )
+      const blob = await zip.generateAsync({ type: 'blob' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `${slugName}.zip`
+      a.click()
+      URL.revokeObjectURL(a.href)
+    }
+  }
+
+  const postOnMarketplace = async () => {
+    const text = `${result.title}\n\nPrecio: ${result.price}\n\n${result.description}`
+    await navigator.clipboard.writeText(text)
+    window.open('https://www.facebook.com/marketplace/create/item', '_blank')
+    setMarketplaceToast(true)
+    setTimeout(() => setMarketplaceToast(false), 5000)
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      searchSimilarListings(productName || result.title, result.price)
+        .then(setSimilarListings)
+        .finally(() => setLoadingSimilar(false))
+    }, 4000)
+    return () => clearTimeout(timer)
+  }, [])
 
   const update = (field, value) => setResult((prev) => ({ ...prev, [field]: value }))
   const startEdit = (field) => setEditing((prev) => ({ ...prev, [field]: true }))
@@ -236,7 +287,7 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
                 Done
               </button>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={onRegenerate}
                   className="py-3 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 transition-all flex items-center justify-center gap-1.5"
@@ -245,20 +296,89 @@ export default function ResultScreen({ images, result: initialResult, onReset, o
                   Regenerate
                 </button>
                 <button
-                  disabled
-                  className="py-3 rounded-xl border border-dashed border-gray-200 text-sm font-medium text-gray-400 cursor-not-allowed flex items-center justify-center gap-1.5"
+                  onClick={downloadImages}
+                  className="py-3 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 transition-all flex items-center justify-center gap-1.5"
                 >
-                  Post on Marketplace
-                  <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full font-semibold">
-                    Soon
-                  </span>
+                  <Download className="w-3.5 h-3.5" />
+                  {images.length === 1 ? 'Descargar' : 'Descargar ZIP'}
+                </button>
+                <button
+                  onClick={postOnMarketplace}
+                  className="py-3 rounded-xl border border-blue-200 bg-blue-50 text-sm font-medium text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Marketplace
                 </button>
               </div>
             </div>
           </div>
 
         </div>
+
+        {/* ── Similar listings section ── */}
+        {(loadingSimilar || similarListings.length > 0) && (
+          <div className="mt-10">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp className="w-4 h-4 text-violet-500" />
+              <h2 className="text-sm font-semibold text-gray-700">Productos similares en el mercado</h2>
+              {loadingSimilar && (
+                <span className="text-xs text-gray-400 animate-pulse">Buscando...</span>
+              )}
+            </div>
+
+            {loadingSimilar ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3 animate-pulse">
+                    <div className="h-3 bg-gray-100 rounded w-16" />
+                    <div className="h-4 bg-gray-100 rounded w-full" />
+                    <div className="h-4 bg-gray-100 rounded w-3/4" />
+                    <div className="h-3 bg-gray-100 rounded w-full" />
+                    <div className="h-3 bg-gray-100 rounded w-2/3" />
+                    <div className="h-5 bg-gray-100 rounded w-20 mt-2" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {similarListings.map((item, i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col gap-2 hover:border-violet-200 hover:shadow-sm transition-all">
+                    <span className="text-[10px] font-semibold text-violet-500 bg-violet-50 px-2 py-0.5 rounded-full self-start">
+                      {item.source}
+                    </span>
+                    <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2">{item.title}</p>
+                    <p className="text-lg font-bold text-gray-900">{item.price}</p>
+                    <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 flex-1">{item.description}</p>
+                    {item.url && (
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-700 mt-1 self-start"
+                      >
+                        Ver listing
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
+
+      {/* Toast: marketplace */}
+      {marketplaceToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-start gap-3 bg-gray-900 text-white text-sm px-4 py-3 rounded-2xl shadow-xl max-w-sm w-full mx-4 animate-fade-in">
+          <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold">Datos copiados al portapapeles</p>
+            <p className="text-gray-400 text-xs mt-0.5">Pega el título y descripción en el formulario de Marketplace.</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
