@@ -6,7 +6,8 @@
       "Bash(supabase:*)",
       "Bash(npm run:*)",
       "WebSearch",
-      "WebFetch(domain:ai.google.dev)"
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(node:*)"
     ]
   }
 }

@@ -12,7 +12,6 @@ import AuthModal from './components/AuthModal'
 import { useAuth } from './hooks/useAuth'
 import { getUsage, incrementUsage } from './lib/usage'
 import { saveListing } from './lib/listings'
-import { enhanceImages } from './lib/imageUtils'
 import { FREE_TIER_LIMIT } from './config'
 
 export default function App() {
@@ -37,8 +36,8 @@ export default function App() {
   const [answers, setAnswers] = useState({})
   const [result, setResult] = useState(null)
   const [uploadError, setUploadError] = useState(null)
-  const [enhancing, setEnhancing] = useState(false)
   const [lockedPrice, setLockedPrice] = useState(null)
+  const [isRegenerate, setIsRegenerate] = useState(false)
   const [toast, setToast] = useState(null)
   const toastTimer = useRef(null)
 
@@ -93,15 +92,10 @@ export default function App() {
     }
     setProductName(analysis.productName || '')
     setProductContext(analysis._webContext || '')
-    setForcedProductName(null) // clear after analysis done
-    if (analysis.needsQuestions && analysis.questions?.length > 0) {
-      setQuestions(analysis.questions)
-      setScreen('questions')
-    } else {
-      setQuestions([])
-      setAnswers({})
-      setScreen('generating')
-    }
+    setForcedProductName(null)
+    // Answers collected inline in AnalyzingScreen
+    setAnswers(analysis._inlineAnswers || {})
+    setScreen('generating')
   }
 
   const handleReanalyze = (correctedName) => {
@@ -115,43 +109,43 @@ export default function App() {
     setScreen('generating')
   }
 
-  const handleResultDone = async (listing) => {
+  const handleResultDone = async (listing, enhancedImgs = null) => {
     if (listing.error) {
       setUploadError(listing.error)
       setScreen('upload')
       return
     }
-    // Save to DB and count usage in parallel
-    await Promise.all([
-      saveListing({
-        title: listing.title,
-        description: listing.description,
-        price: listing.price,
-        category: listing.category,
-        productName,
-      }),
-      incrementUsage(),
-    ])
     // Preserve user-edited price if regenerating
     const finalListing = lockedPrice ? { ...listing, price: lockedPrice } : listing
     setLockedPrice(null)
 
+    // Only save + count on first generation, not on regenerate
+    if (!isRegenerate) {
+      await Promise.all([
+        saveListing({
+          title: listing.title,
+          description: listing.description,
+          price: listing.price,
+          category: listing.category,
+          productName,
+        }),
+        incrementUsage(),
+      ])
+    }
+    setIsRegenerate(false)
+
+    // Enhanced images come from AnalyzingScreen (generate mode runs it in parallel)
+    if (enhancedImgs) {
+      setImages(enhancedImgs)
+    }
+
     setResult(finalListing)
     setScreen('result')
-
-    // Only enhance images on first generation — skip if already enhanced
-    const alreadyEnhanced = images.some((img) => img.enhanced)
-    if (!alreadyEnhanced) {
-      setEnhancing(true)
-      enhanceImages(images).then((enhanced) => {
-        setImages(enhanced)
-        setEnhancing(false)
-      })
-    }
   }
 
   const handleRegenerate = (currentPrice) => {
     setLockedPrice(currentPrice ?? null)
+    setIsRegenerate(true)
     setScreen('generating')
   }
 
@@ -200,16 +194,6 @@ export default function App() {
         />
       )}
 
-      {screen === 'questions' && (
-        <QuestionsScreen
-          images={images}
-          productName={productName}
-          questions={questions}
-          onReanalyze={handleReanalyze}
-          onGenerate={handleGenerate}
-          onBack={handleReset}
-        />
-      )}
 
       {screen === 'generating' && (
         <AnalyzingScreen
@@ -228,7 +212,6 @@ export default function App() {
           images={images}
           result={result}
           productName={productName}
-          enhancing={enhancing}
           onReset={handleReset}
           onRegenerate={handleRegenerate}
         />

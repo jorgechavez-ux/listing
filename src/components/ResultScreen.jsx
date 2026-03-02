@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Copy, Check, Sparkles, ChevronLeft, ChevronRight, Zap, Pencil, ExternalLink, TrendingUp, Download, X, Wand2 } from 'lucide-react'
+import { Copy, Check, Sparkles, ChevronLeft, ChevronRight, Zap, Pencil, ExternalLink, TrendingUp, Download, X } from 'lucide-react'
 import { searchSimilarListings } from '../lib/gemini'
 import JSZip from 'jszip'
 
@@ -45,14 +45,10 @@ function SaveButton({ onClick }) {
   )
 }
 
-export default function ResultScreen({ images: initialImages, result: initialResult, productName, enhancing, onReset, onRegenerate }) {
+export default function ResultScreen({ images: initialImages, result: initialResult, productName, onReset, onRegenerate }) {
   const [result, setResult] = useState(initialResult)
   const [imgs, setImgs] = useState(initialImages)
 
-  // Sync when Nano Banana finishes enhancing (enhancing flips false → images prop updated)
-  useEffect(() => {
-    if (!enhancing) setImgs(initialImages)
-  }, [enhancing])
   const [activeImage, setActiveImage] = useState(0)
   const [editing, setEditing] = useState({ title: false, description: false, price: false, category: false })
   const [similarListings, setSimilarListings] = useState([])
@@ -134,23 +130,8 @@ export default function ResultScreen({ images: initialImages, result: initialRes
                 className="w-full h-full object-cover transition-opacity duration-200"
               />
 
-              {/* Shimmer overlay while enhancing */}
-              {enhancing && (
-                <div className="absolute inset-0 z-10 overflow-hidden rounded-2xl">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
-                  <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-2">
-                    <Wand2 className="w-7 h-7 text-white animate-pulse" />
-                    <span className="text-white text-sm font-semibold tracking-wide">Enhancing with AI...</span>
-                    <span className="text-white/60 text-xs">Nano Banana 2 is working</span>
-                  </div>
-                </div>
-              )}
-
               <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/55 backdrop-blur-sm text-white text-xs font-medium px-2.5 py-1.5 rounded-full">
-                {enhancing
-                  ? <><Wand2 className="w-3 h-3 text-violet-300 animate-pulse" /> Enhancing...</>
-                  : <><Zap className="w-3 h-3 text-yellow-400" /> Enhanced with AI</>
-                }
+                <Zap className="w-3 h-3 text-yellow-400" /> Enhanced with AI
               </div>
 
               {imgs.length > 1 && (

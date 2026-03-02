@@ -1,4 +1,5 @@
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
+const API_KEY        = import.meta.env.VITE_GEMINI_API_KEY
+const GOOGLE_AI_KEY  = import.meta.env.VITE_GOOGLE_AI_KEY
 
 async function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -9,7 +10,43 @@ async function fileToBase64(file) {
   })
 }
 
-// Vision call (Llama 4 Scout)
+// Vision call using Gemini 2.5 Flash — much better product recognition than Llama
+async function callGeminiVision(imageFile, prompt) {
+  const base64   = await fileToBase64(imageFile)
+  const mimeType = imageFile.type || 'image/jpeg'
+
+  const res = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GOOGLE_AI_KEY },
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { inline_data: { mime_type: mimeType, data: base64 } },
+          { text: prompt },
+        ]}],
+        generationConfig: { temperature: 0.1 },
+      }),
+    }
+  )
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error?.message || `Gemini vision error ${res.status}`)
+  }
+
+  const data = await res.json()
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+  if (!text) throw new Error('No response from Gemini vision')
+
+  // Extract JSON from response (Gemini sometimes wraps it in markdown)
+  const start = text.indexOf('{')
+  const end   = text.lastIndexOf('}')
+  if (start === -1 || end === -1) throw new Error('No JSON in Gemini response')
+  return JSON.parse(text.slice(start, end + 1))
+}
+
+// Vision call (Llama 4 Scout) — used for questions + listing generation
 async function callGroq(imageFile, prompt) {
   const base64 = await fileToBase64(imageFile)
   const mimeType = imageFile.type
@@ -87,16 +124,57 @@ If you can't find it, reply: {"found":false}`,
 }
 
 // Step 0 (internal): quick visual identification + search query
+// Uses Gemini 2.5 Flash with Google Search grounding (one call), falls back to Groq
 async function identifyProduct(imageFile) {
+  const prompt = `Look at this product photo and identify the exact product. Use Google Search to confirm the exact brand, model name, generation, and variant.
+Ignore anything shown on screens or displays (time, apps, wallpapers, notifications).
+Reply ONLY with this JSON and nothing else:
+{"productName":"exact brand + model + variant (e.g. 'Apple iPhone 16 Pro Max Natural Titanium')","searchQuery":"search query to find used resale price for this exact model","shouldSearch":true}`
+
+  if (GOOGLE_AI_KEY) {
+    try {
+      const base64   = await fileToBase64(imageFile)
+      const mimeType = imageFile.type || 'image/jpeg'
+      const res = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GOOGLE_AI_KEY },
+          body: JSON.stringify({
+            contents: [{ parts: [
+              { inline_data: { mime_type: mimeType, data: base64 } },
+              { text: prompt },
+            ]}],
+            tools: [{ google_search: {} }],
+            generationConfig: { temperature: 0 },
+          }),
+        }
+      )
+      if (res.ok) {
+        const data = await res.json()
+        const text = data.candidates?.[0]?.content?.parts?.find(p => p.text)?.text
+        if (text) {
+          const start = text.indexOf('{'), end = text.lastIndexOf('}')
+          if (start !== -1 && end !== -1) {
+            const parsed = JSON.parse(text.slice(start, end + 1))
+            if (parsed.productName) {
+              console.log('[GeminiSearch] Identified:', parsed.productName)
+              return parsed
+            }
+          }
+        }
+      }
+    } catch {
+      // fall through to Groq
+    }
+  }
+
+  // Fallback: Llama via Groq
   try {
     return await callGroq(imageFile, `Look at this product photo.
-Ignore any content shown ON screens or displays (time, notifications, apps, wallpapers, etc.) — focus only on identifying the physical product itself.
+Ignore any content shown ON screens or displays — focus only on identifying the physical product itself.
 Reply ONLY with valid JSON:
-{
-  "productName": "most specific name you can identify (e.g. 'Nike Air Max 95', 'iPhone 14 Pro 128GB', 'IKEA Poäng armchair'). If generic, describe it (e.g. 'wooden dining chair')",
-  "searchQuery": "Google search query to identify this exact product and find its price (e.g. 'Nike Air Max 95 white sneaker resale price')",
-  "shouldSearch": true if it's a specific branded or identifiable product where a web search would return useful info, false if it's too generic
-}`)
+{"productName":"most specific name you can identify","searchQuery":"Google search query to find its price","shouldSearch":true}`)
   } catch {
     return null
   }
@@ -104,12 +182,14 @@ Reply ONLY with valid JSON:
 
 // Step 1: analyze the photo and decide if questions are needed
 // forcedProductName: when the user manually corrected the product name, skip visual ID
-export async function analyzeForQuestions(imageFile, extraDetails = '', forcedProductName = null) {
+// onProgress: optional callback fired as each phase completes with real data
+export async function analyzeForQuestions(imageFile, extraDetails = '', forcedProductName = null, onProgress = null) {
   // -- Phase A: product identification --
   let identified
 
+  onProgress?.({ phase: 'identifying' })
+
   if (forcedProductName) {
-    // User already told us what it is — trust them, go straight to web search
     identified = {
       productName: forcedProductName,
       searchQuery: `${forcedProductName} used resale price marketplace specs`,
@@ -119,13 +199,24 @@ export async function analyzeForQuestions(imageFile, extraDetails = '', forcedPr
     identified = await identifyProduct(imageFile)
   }
 
+  onProgress?.({ phase: 'identified', productName: identified?.productName || null })
+
   // -- Phase B: web search (only for branded/identifiable products) --
   let webContext = ''
+  let webData = null
+
   if (identified?.shouldSearch && identified?.searchQuery) {
+    onProgress?.({ phase: 'searching' })
     const found = await searchProductInfo(identified.searchQuery)
     if (found) {
+      webData = found
       webContext = `\nWeb search confirmed: exact product is "${found.exactName}". Typical used market price: ${found.usedPrice}. Key specs: ${found.specs}.`
+      onProgress?.({ phase: 'searched', exactName: found.exactName, usedPrice: found.usedPrice })
+    } else {
+      onProgress?.({ phase: 'searched', exactName: null, usedPrice: null })
     }
+  } else {
+    onProgress?.({ phase: 'searched', exactName: null, usedPrice: null })
   }
 
   // -- Phase C: full analysis with enriched context --
@@ -163,6 +254,7 @@ Reply ONLY with valid JSON:
 
 Maximum 3 questions. If there is nothing genuinely useful to ask, return needsQuestions: false.`
 
+  onProgress?.({ phase: 'analyzing' })
   const result = await callGroq(imageFile, prompt)
 
   // If the user manually corrected the name, always trust them over the AI's vision
