@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Copy, Check, Sparkles, ChevronLeft, ChevronRight, Zap, Pencil, ExternalLink, TrendingUp, Download } from 'lucide-react'
+import { Copy, Check, Sparkles, ChevronLeft, ChevronRight, Zap, Pencil, ExternalLink, TrendingUp, Download, X, Wand2 } from 'lucide-react'
 import { searchSimilarListings } from '../lib/gemini'
 import JSZip from 'jszip'
 
@@ -45,21 +45,35 @@ function SaveButton({ onClick }) {
   )
 }
 
-export default function ResultScreen({ images, result: initialResult, productName, onReset, onRegenerate }) {
+export default function ResultScreen({ images: initialImages, result: initialResult, productName, enhancing, onReset, onRegenerate }) {
   const [result, setResult] = useState(initialResult)
+  const [imgs, setImgs] = useState(initialImages)
+
+  // Sync when Nano Banana finishes enhancing (enhancing flips false → images prop updated)
+  useEffect(() => {
+    if (!enhancing) setImgs(initialImages)
+  }, [enhancing])
   const [activeImage, setActiveImage] = useState(0)
   const [editing, setEditing] = useState({ title: false, description: false, price: false, category: false })
   const [similarListings, setSimilarListings] = useState([])
   const [loadingSimilar, setLoadingSimilar] = useState(true)
   const [marketplaceToast, setMarketplaceToast] = useState(false)
 
+  const removeImage = (id) => {
+    setImgs((prev) => {
+      const next = prev.filter((img) => img.id !== id)
+      setActiveImage((ai) => Math.min(ai, Math.max(next.length - 1, 0)))
+      return next
+    })
+  }
+
   const slugName = (result.title || 'listing').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)
 
   const downloadImages = async () => {
     const fetchBlob = (url) => fetch(url).then((r) => r.blob())
 
-    if (images.length === 1) {
-      const blob = await fetchBlob(images[0].url)
+    if (imgs.length === 1) {
+      const blob = await fetchBlob(imgs[0].url)
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
       a.download = `${slugName}.png`
@@ -68,7 +82,7 @@ export default function ResultScreen({ images, result: initialResult, productNam
     } else {
       const zip = new JSZip()
       await Promise.all(
-        images.map(async (img, i) => {
+        imgs.map(async (img, i) => {
           const blob = await fetchBlob(img.url)
           zip.file(`${slugName}-${i + 1}.png`, blob)
         })
@@ -103,8 +117,8 @@ export default function ResultScreen({ images, result: initialResult, productNam
   const startEdit = (field) => setEditing((prev) => ({ ...prev, [field]: true }))
   const stopEdit = (field) => setEditing((prev) => ({ ...prev, [field]: false }))
 
-  const prevImage = () => setActiveImage((i) => (i - 1 + images.length) % images.length)
-  const nextImage = () => setActiveImage((i) => (i + 1) % images.length)
+  const prevImage = () => setActiveImage((i) => (i - 1 + imgs.length) % imgs.length)
+  const nextImage = () => setActiveImage((i) => (i + 1) % imgs.length)
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
@@ -115,17 +129,31 @@ export default function ResultScreen({ images, result: initialResult, productNam
           <div className="space-y-3">
             <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 shadow-sm group">
               <img
-                src={images[activeImage]?.url}
+                src={imgs[activeImage]?.url}
                 alt=""
                 className="w-full h-full object-cover transition-opacity duration-200"
               />
 
+              {/* Shimmer overlay while enhancing */}
+              {enhancing && (
+                <div className="absolute inset-0 z-10 overflow-hidden rounded-2xl">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+                  <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-2">
+                    <Wand2 className="w-7 h-7 text-white animate-pulse" />
+                    <span className="text-white text-sm font-semibold tracking-wide">Enhancing with AI...</span>
+                    <span className="text-white/60 text-xs">Nano Banana 2 is working</span>
+                  </div>
+                </div>
+              )}
+
               <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/55 backdrop-blur-sm text-white text-xs font-medium px-2.5 py-1.5 rounded-full">
-                <Zap className="w-3 h-3 text-yellow-400" />
-                Enhanced with AI
+                {enhancing
+                  ? <><Wand2 className="w-3 h-3 text-violet-300 animate-pulse" /> Enhancing...</>
+                  : <><Zap className="w-3 h-3 text-yellow-400" /> Enhanced with AI</>
+                }
               </div>
 
-              {images.length > 1 && (
+              {imgs.length > 1 && (
                 <>
                   <button
                     onClick={prevImage}
@@ -140,7 +168,7 @@ export default function ResultScreen({ images, result: initialResult, productNam
                     <ChevronRight className="w-5 h-5" />
                   </button>
                   <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                    {images.map((_, i) => (
+                    {imgs.map((_, i) => (
                       <button
                         key={i}
                         onClick={() => setActiveImage(i)}
@@ -152,20 +180,31 @@ export default function ResultScreen({ images, result: initialResult, productNam
               )}
             </div>
 
-            {images.length > 1 && (
+            {imgs.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {images.map((img, i) => (
-                  <button
+                {imgs.map((img, i) => (
+                  <div
                     key={img.id}
-                    onClick={() => setActiveImage(i)}
-                    className={`shrink-0 w-[72px] h-[72px] rounded-xl overflow-hidden border-2 transition-all ${
+                    className={`relative shrink-0 w-[72px] h-[72px] rounded-xl overflow-hidden border-2 transition-all group ${
                       activeImage === i
                         ? 'border-violet-500 shadow-md shadow-violet-100'
                         : 'border-transparent hover:border-gray-300 opacity-70 hover:opacity-100'
                     }`}
                   >
-                    <img src={img.url} alt="" className="w-full h-full object-cover" />
-                  </button>
+                    <img
+                      src={img.url}
+                      alt=""
+                      className="w-full h-full object-cover cursor-pointer"
+                      onClick={() => setActiveImage(i)}
+                    />
+                    <button
+                      onClick={() => removeImage(img.id)}
+                      className="absolute top-1 right-1 w-5 h-5 bg-black/70 hover:bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                      title="Remove photo"
+                    >
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -289,7 +328,7 @@ export default function ResultScreen({ images, result: initialResult, productNam
 
               <div className="grid grid-cols-3 gap-2">
                 <button
-                  onClick={onRegenerate}
+                  onClick={() => onRegenerate(result.price)}
                   className="py-3 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 transition-all flex items-center justify-center gap-1.5"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
@@ -300,7 +339,7 @@ export default function ResultScreen({ images, result: initialResult, productNam
                   className="py-3 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 transition-all flex items-center justify-center gap-1.5"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  {images.length === 1 ? 'Descargar' : 'Descargar ZIP'}
+                  {imgs.length === 1 ? 'Descargar' : 'Descargar ZIP'}
                 </button>
                 <button
                   onClick={postOnMarketplace}

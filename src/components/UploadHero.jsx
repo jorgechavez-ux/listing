@@ -1,7 +1,45 @@
-import { useState, useRef, useCallback } from 'react'
-import { Upload, ImagePlus, X, Sparkles, AlertCircle, Loader2 } from 'lucide-react'
+import { useState, useRef, useCallback, useEffect } from 'react'
+import { Upload, ImagePlus, X, Sparkles, AlertCircle, Loader2, Camera, ZoomIn, ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { processImages } from '../lib/imageUtils'
+
+const TYPING_HINTS = [
+  'bought it 6 months ago, works perfectly...',
+  'small scratch on the back, barely noticeable...',
+  'includes original box and all accessories...',
+  'only used 3 times, like new condition...',
+  'size M, black, no stains or damage...',
+  '2022 model, battery health at 90%...',
+  'open to offers, need to sell quickly...',
+]
+
+function useTypingPlaceholder(phrases, typingSpeed = 55, deletingSpeed = 28, pauseMs = 1800) {
+  const [displayed, setDisplayed] = useState('')
+  const [phraseIdx, setPhraseIdx] = useState(0)
+  const [deleting, setDeleting] = useState(false)
+
+  useEffect(() => {
+    const current = phrases[phraseIdx]
+    if (!deleting && displayed === current) {
+      const t = setTimeout(() => setDeleting(true), pauseMs)
+      return () => clearTimeout(t)
+    }
+    if (deleting && displayed === '') {
+      setDeleting(false)
+      setPhraseIdx((i) => (i + 1) % phrases.length)
+      return
+    }
+    const t = setTimeout(() => {
+      setDisplayed(deleting
+        ? displayed.slice(0, -1)
+        : current.slice(0, displayed.length + 1)
+      )
+    }, deleting ? deletingSpeed : typingSpeed)
+    return () => clearTimeout(t)
+  }, [displayed, deleting, phraseIdx])
+
+  return displayed
+}
 
 // Static product sample photos (replace with your own in /public/samples/)
 const SAMPLE_PRODUCTS = [
@@ -26,6 +64,24 @@ export default function UploadHero({ onStart, error }) {
   const [dragging, setDragging]   = useState(false)
   const [processing, setProcessing] = useState(false)
   const inputRef = useRef(null)
+  const typingPlaceholder = useTypingPlaceholder(TYPING_HINTS)
+  const [viewerIndex, setViewerIndex] = useState(null)
+
+  const openViewer  = (i) => setViewerIndex(i)
+  const closeViewer = () => setViewerIndex(null)
+  const viewerPrev  = (e) => { e.stopPropagation(); setViewerIndex((i) => (i - 1 + images.length) % images.length) }
+  const viewerNext  = (e) => { e.stopPropagation(); setViewerIndex((i) => (i + 1) % images.length) }
+
+  useEffect(() => {
+    if (viewerIndex === null) return
+    const onKey = (e) => {
+      if (e.key === 'Escape')     closeViewer()
+      if (e.key === 'ArrowLeft')  setViewerIndex((i) => (i - 1 + images.length) % images.length)
+      if (e.key === 'ArrowRight') setViewerIndex((i) => (i + 1) % images.length)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [viewerIndex, images.length])
 
   const addFiles = useCallback(async (files) => {
     setProcessing(true)
@@ -180,11 +236,18 @@ export default function UploadHero({ onStart, error }) {
             {!processing && hasImages && (
               <div className="space-y-3">
                 <div className="grid grid-cols-3 gap-3">
-                  {images.map((img) => (
-                    <div key={img.id} className="relative aspect-square rounded-xl overflow-hidden group">
-                      <img src={img.url} alt="" className="w-full h-full object-cover" />
-                      <div className="absolute bottom-1.5 left-1.5 bg-black/55 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                        {img.enhanced ? '✦ AI' : '✦ 1:1'}
+                  {images.map((img, i) => (
+                    <div key={img.id} className="relative aspect-square rounded-xl overflow-hidden group cursor-pointer"
+                      onClick={(e) => { e.stopPropagation(); openViewer(i) }}
+                    >
+                      <img src={img.url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                      <div className={`absolute bottom-1.5 left-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                        img.enhanced ? 'bg-violet-600 text-white' : 'bg-black/50 text-white/70'
+                      }`}>
+                        {img.enhanced ? '✦ AI enhanced' : '✦ canvas'}
+                      </div>
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <ZoomIn className="w-6 h-6 text-white drop-shadow" />
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); removeImage(img.id) }}
@@ -217,6 +280,26 @@ export default function UploadHero({ onStart, error }) {
             />
           </div>
 
+          {/* Banner: multi-photo tip */}
+          <AnimatePresence>
+            {!processing && (
+              <motion.div
+                key="photo-tip"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3, ease }}
+                className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 text-left"
+              >
+                <Camera className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  <span className="font-semibold">Upload multiple photos</span> — front, back, details and accessories.
+                  The more angles you share, the more accurate and complete your listing will be.
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Extra details + CTA — animate in when images are added */}
           <AnimatePresence>
             {hasImages && !processing && (
@@ -236,7 +319,7 @@ export default function UploadHero({ onStart, error }) {
                   <textarea
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
-                    placeholder="e.g. bought it 6 months ago, has a small scratch on the back, includes original accessories..."
+                    placeholder={typingPlaceholder}
                     rows={3}
                     className="w-full text-sm text-gray-700 placeholder-gray-400 resize-none outline-none"
                   />
@@ -259,6 +342,72 @@ export default function UploadHero({ onStart, error }) {
           </AnimatePresence>
         </motion.div>
       </div>
+      {/* Image viewer */}
+      <AnimatePresence>
+        {viewerIndex !== null && (
+          <motion.div
+            key="viewer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+            onClick={closeViewer}
+          >
+            {/* Close */}
+            <button
+              onClick={closeViewer}
+              className="absolute top-4 right-4 w-9 h-9 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Counter */}
+            {images.length > 1 && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/60 text-sm font-medium">
+                {viewerIndex + 1} / {images.length}
+              </div>
+            )}
+
+            {/* Image */}
+            <motion.img
+              key={viewerIndex}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.2 }}
+              src={images[viewerIndex]?.url}
+              alt=""
+              className="max-w-[90vw] max-h-[90vh] object-contain rounded-2xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+
+            {/* Prev / Next */}
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={viewerPrev}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={viewerNext}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
+
+            {/* Badge */}
+            <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 text-xs font-semibold px-3 py-1.5 rounded-full ${
+              images[viewerIndex]?.enhanced ? 'bg-violet-600 text-white' : 'bg-white/10 text-white/60'
+            }`}>
+              {images[viewerIndex]?.enhanced ? '✦ AI enhanced' : '✦ canvas'}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   )
 }

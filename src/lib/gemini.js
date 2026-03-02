@@ -90,6 +90,7 @@ If you can't find it, reply: {"found":false}`,
 async function identifyProduct(imageFile) {
   try {
     return await callGroq(imageFile, `Look at this product photo.
+Ignore any content shown ON screens or displays (time, notifications, apps, wallpapers, etc.) — focus only on identifying the physical product itself.
 Reply ONLY with valid JSON:
 {
   "productName": "most specific name you can identify (e.g. 'Nike Air Max 95', 'iPhone 14 Pro 128GB', 'IKEA Poäng armchair'). If generic, describe it (e.g. 'wooden dining chair')",
@@ -272,10 +273,17 @@ export async function generateListing(imageFiles, extraDetails, answers = {}, pr
 
   const prompt = `You are a Marketplace sales expert (Facebook Marketplace, OfferUp, Craigslist, etc.). Analyze the photo and create an attractive listing to sell the product.${nameContext}${extraContext}${specsContext}${webCtx}
 
+IMPORTANT — what to ignore in the photos:
+- Any content displayed ON a screen or display (time, clock, notifications, apps, wallpapers, battery %, lock screen, etc.)
+- Backgrounds, surfaces, or objects that are NOT the product being sold
+- Anything on a TV, monitor, phone screen, tablet screen, or any device display
+
+Focus ONLY on: the physical product itself — its condition, color, shape, brand markings, accessories included, and any visible wear.
+
 Reply ONLY with valid JSON:
 {
   "title": "short and catchy title, maximum 80 characters",
-  "description": "3 to 5 sentences. Must sound like it was written by a real person, not AI. Mention specific details visible in the photo and any specs provided. Write in first person as the seller. Build trust without exaggerating.",
+  "description": "3 to 5 sentences. Must sound like it was written by a real person, not AI. Describe the physical condition and relevant features of the product. Write in first person as the seller. Build trust without exaggerating.",
   "price": "suggested price in USD with $ symbol",
   "category": "most appropriate category for this product"
 }

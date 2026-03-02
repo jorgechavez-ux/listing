@@ -62,8 +62,9 @@ async function enhanceWithNanaBanana(base64Data) {
   }
 
   try {
+    console.log('[NanaBanana2] Sending image to Google AI...')
     const res = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
       {
         method: 'POST',
         headers: {
@@ -74,7 +75,15 @@ async function enhanceWithNanaBanana(base64Data) {
           contents: [{
             parts: [
               {
-                text: 'Reframe and enhance this product photo for a Facebook Marketplace listing. Crop to a 1:1 square that best showcases the product — center the item with clean professional composition. Improve lighting, sharpness, and white balance. Keep the product 100% photorealistic: preserve its exact colors, shape, and design. No artificial backgrounds, no painterly or AI-art style, no surreal elements. The result must look like a real photo taken by a person with a good camera, not AI-generated.',
+                text: `You are a professional product photographer editor. Transform this product photo into a perfect marketplace listing image:
+
+1. REFRAME: If the product is too close or cropped, zoom out so the ENTIRE product is fully visible with breathing room on all sides. Never cut off any part of the product.
+2. COMPOSITION: Center the product in a clean 1:1 square. Add padding/margin around it — the product should occupy 65–80% of the frame, not edge to edge.
+3. BACKGROUND: Clean, neutral, slightly bright background (white, light gray, or the original background improved). Remove clutter if possible.
+4. QUALITY: Sharpen, improve lighting, boost contrast slightly, correct white balance. Make it look like a professional product photo.
+5. STYLE: 100% photorealistic. No illustrations, no AI-art, no painterly effects. Must look like a real camera photo, just better lit and framed.
+
+Output a single clean square product photo ready for Facebook Marketplace.`,
               },
               {
                 inline_data: {
@@ -92,21 +101,25 @@ async function enhanceWithNanaBanana(base64Data) {
     )
 
     if (!res.ok) {
-      console.warn('[imageUtils] Nano Banana 2 error:', res.status, await res.text().catch(() => ''))
+      const errText = await res.text().catch(() => '')
+      console.warn('[NanaBanana2] API error:', res.status, errText)
       return null
     }
 
     const data = await res.json()
     const parts = data.candidates?.[0]?.content?.parts || []
-    const imgPart = parts.find((p) => p.inline_data?.mime_type?.startsWith('image/'))
+    const imgPart = parts.find((p) => p.inlineData?.mimeType?.startsWith('image/') || p.inline_data?.mime_type?.startsWith('image/'))
     if (!imgPart) {
-      console.warn('[imageUtils] Nano Banana 2: no image part in response')
+      console.warn('[NanaBanana2] No image in response. Parts received:', JSON.stringify(parts).slice(0, 300))
       return null
     }
 
-    return { data: imgPart.inline_data.data, mimeType: imgPart.inline_data.mime_type }
+    const imgData   = imgPart.inlineData   ?? imgPart.inline_data
+    const mimeType  = imgData.mimeType     ?? imgData.mime_type
+    console.log('[NanaBanana2] ✓ Enhancement successful')
+    return { data: imgData.data, mimeType }
   } catch (e) {
-    console.warn('[imageUtils] Nano Banana 2 exception:', e)
+    console.warn('[NanaBanana2] Exception:', e)
     return null
   }
 }
@@ -121,11 +134,9 @@ function base64ToHTMLImage(base64Data, mimeType) {
 }
 
 /**
- * Process a single image file:
- *  1. Resize to 1536px max for the AI call (maintains aspect ratio, high quality)
- *  2. Send to Nano Banana 2 for smart reframe + enhancement
- *  3. AI success  → center-crop AI output to 1200×1200 (high quality ctx)
- *  4. AI fallback → canvas center-crop with subtle sharpening filter at 1200×1200
+ * Process a single image file (canvas only, no AI enhancement).
+ * Fast — used during upload so the original image reaches the AI analysis intact.
+ * Nano Banana enhancement happens separately after listing generation.
  */
 export async function processImage(file) {
   return new Promise((resolve, reject) => {
@@ -136,35 +147,18 @@ export async function processImage(file) {
       URL.revokeObjectURL(rawUrl)
 
       try {
-        // Prepare AI input: resize to max 1536px, high-quality interpolation
-        const inputCanvas = resizeCanvas(img, AI_INPUT_MAX)
-        const inputBase64 = canvasToBase64(inputCanvas, 0.88)
-
-        // Try Nano Banana 2
-        const enhanced = await enhanceWithNanaBanana(inputBase64)
-
-        let finalBlob
-
-        if (enhanced) {
-          // Decode AI output → center-crop → 1200×1200 (high quality)
-          const enhancedImg = await base64ToHTMLImage(enhanced.data, enhanced.mimeType)
-          const outputCanvas = centerCropToCanvas(enhancedImg, OUTPUT_SIZE)
-          finalBlob = await canvasToBlob(outputCanvas, 0.95)
-        } else {
-          // Fallback: center-crop + contrast/saturation boost for perceived sharpness
-          const outputCanvas = centerCropToCanvas(
-            img,
-            OUTPUT_SIZE,
-            'brightness(1.04) contrast(1.12) saturate(1.12)'
-          )
-          finalBlob = await canvasToBlob(outputCanvas, 0.95)
-        }
+        const outputCanvas = centerCropToCanvas(
+          img,
+          OUTPUT_SIZE,
+          'brightness(1.04) contrast(1.12) saturate(1.12)'
+        )
+        const finalBlob = await canvasToBlob(outputCanvas, 0.95)
 
         resolve({
           file: new File([finalBlob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }),
           url: URL.createObjectURL(finalBlob),
           id: Math.random().toString(36).slice(2),
-          enhanced: !!enhanced,
+          enhanced: false,
         })
       } catch (e) {
         reject(e)
@@ -180,4 +174,35 @@ export async function processImages(files) {
   return Promise.all(
     Array.from(files).filter((f) => f.type.startsWith('image/')).map(processImage)
   )
+}
+
+/**
+ * Enhance already-processed images with Nano Banana 2.
+ * Called after listing generation so it doesn't affect product identification.
+ * Silently skips images that fail — returns original as fallback.
+ */
+export async function enhanceImages(imgObjs) {
+  return Promise.all(imgObjs.map(async (imgObj) => {
+    const blob = await fetch(imgObj.url).then((r) => r.blob())
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload  = () => resolve(reader.result.split(',')[1])
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+
+    const enhanced = await enhanceWithNanaBanana(base64)
+    if (!enhanced) return imgObj
+
+    const enhancedImg   = await base64ToHTMLImage(enhanced.data, enhanced.mimeType)
+    const outputCanvas  = centerCropToCanvas(enhancedImg, OUTPUT_SIZE)
+    const finalBlob     = await canvasToBlob(outputCanvas, 0.95)
+
+    return {
+      ...imgObj,
+      file: new File([finalBlob], imgObj.file?.name || 'enhanced.jpg', { type: 'image/jpeg' }),
+      url:  URL.createObjectURL(finalBlob),
+      enhanced: true,
+    }
+  }))
 }

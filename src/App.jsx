@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { Zap, X } from 'lucide-react'
 import Navbar from './components/Navbar'
 import UploadHero from './components/UploadHero'
 import AnalyzingScreen from './components/AnalyzingScreen'
@@ -11,6 +12,7 @@ import AuthModal from './components/AuthModal'
 import { useAuth } from './hooks/useAuth'
 import { getUsage, incrementUsage } from './lib/usage'
 import { saveListing } from './lib/listings'
+import { enhanceImages } from './lib/imageUtils'
 import { FREE_TIER_LIMIT } from './config'
 
 export default function App() {
@@ -35,6 +37,16 @@ export default function App() {
   const [answers, setAnswers] = useState({})
   const [result, setResult] = useState(null)
   const [uploadError, setUploadError] = useState(null)
+  const [enhancing, setEnhancing] = useState(false)
+  const [lockedPrice, setLockedPrice] = useState(null)
+  const [toast, setToast] = useState(null)
+  const toastTimer = useRef(null)
+
+  const showToast = (message) => {
+    clearTimeout(toastTimer.current)
+    setToast(message)
+    toastTimer.current = setTimeout(() => setToast(null), 4000)
+  }
 
   // Auth modal
   const [showAuth, setShowAuth] = useState(false)
@@ -50,9 +62,10 @@ export default function App() {
       return
     }
 
-    const { canGenerate, count } = await getUsage()
+    const { canGenerate } = await getUsage()
     if (!canGenerate) {
-      setUploadError(`Alcanzaste el límite de ${FREE_TIER_LIMIT} listings gratuitos este mes. Pasate a Pro para generar más.`)
+      showToast(`You've reached the ${FREE_TIER_LIMIT} free listings limit for this month.`)
+      setScreen('pricing')
       return
     }
 
@@ -119,11 +132,28 @@ export default function App() {
       }),
       incrementUsage(),
     ])
-    setResult(listing)
+    // Preserve user-edited price if regenerating
+    const finalListing = lockedPrice ? { ...listing, price: lockedPrice } : listing
+    setLockedPrice(null)
+
+    setResult(finalListing)
     setScreen('result')
+
+    // Only enhance images on first generation — skip if already enhanced
+    const alreadyEnhanced = images.some((img) => img.enhanced)
+    if (!alreadyEnhanced) {
+      setEnhancing(true)
+      enhanceImages(images).then((enhanced) => {
+        setImages(enhanced)
+        setEnhancing(false)
+      })
+    }
   }
 
-  const handleRegenerate = () => setScreen('generating')
+  const handleRegenerate = (currentPrice) => {
+    setLockedPrice(currentPrice ?? null)
+    setScreen('generating')
+  }
 
   const handlePricing = () => setScreen('pricing')
   const handleHistory = () => setScreen('history')
@@ -198,6 +228,7 @@ export default function App() {
           images={images}
           result={result}
           productName={productName}
+          enhancing={enhancing}
           onReset={handleReset}
           onRegenerate={handleRegenerate}
         />
@@ -230,6 +261,17 @@ export default function App() {
           onClose={() => { setShowAuth(false); setPendingStart(null) }}
           onSuccess={handleAuthSuccess}
         />
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-start gap-3 bg-gray-900 text-white text-sm px-4 py-3 rounded-2xl shadow-xl max-w-xs animate-fade-in">
+          <Zap className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" />
+          <p className="leading-snug">{toast}</p>
+          <button onClick={() => setToast(null)} className="shrink-0 text-white/40 hover:text-white/80 transition-colors ml-1">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
       )}
     </>
   )
