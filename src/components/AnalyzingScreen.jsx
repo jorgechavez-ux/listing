@@ -115,7 +115,7 @@ function AnalyzeLoader({ image, phase, discovered }) {
             exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.3 }}
             className="text-sm text-gray-400 font-medium -mt-2"
           >
-            Analizando<Dots />
+            Analyzing<Dots />
           </motion.p>
         )}
       </AnimatePresence>
@@ -139,7 +139,7 @@ function AnalyzeLoader({ image, phase, discovered }) {
             exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.3 }}
             className="text-sm text-gray-400 font-medium -mt-2"
           >
-            Buscando en el mercado<Dots />
+            Searching the market<Dots />
           </motion.p>
         )}
       </AnimatePresence>
