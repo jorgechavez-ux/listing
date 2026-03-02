@@ -16,7 +16,7 @@ export async function getUsage() {
     .from('subscriptions')
     .select('plan, status, current_period_end')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   const active = sub?.status === 'active' || sub?.status === 'trialing' || sub?.status === 'canceling'
   const plan = active ? (sub?.plan || 'free') : 'free'
